@@ -4,7 +4,6 @@
   "description": "Full custom backend for Full stack saas-pulse",
   "license": "ISC",
   "author": "Vishall",
-  "type": "module",
   "main": "server.ts",
   "scripts": {
     "dev": "nodemon --exec tsx src/server.ts",
