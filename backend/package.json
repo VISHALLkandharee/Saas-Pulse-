@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "nodemon --exec tsx src/server.ts",
     "build": "npx prisma generate && tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/src/server.js"
   },
   "dependencies": {
     "@prisma/client": "^7.4.1",
