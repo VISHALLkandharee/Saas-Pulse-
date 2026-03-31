@@ -1,0 +1,53 @@
+/**
+ * EmailService (Stub)
+ * 
+ * This service handles sending outgoing communication. 
+ * In a production environment, this would integrate with SendGrid, Postmark, or Resend.
+ */
+export class EmailService {
+  /**
+   * Simulates sending a welcome email to a new user.
+   */
+  static async sendWelcomeEmail(to: string, name: string) {
+    console.log(`[EMAIL] 📧 Sending welcome email to: ${to}`);
+    console.log(`[EMAIL] 📝 Subject: Welcome to SaaS Pulse, ${name}!`);
+    console.log(`[EMAIL] 🔗 Body: Your dashboard is ready at https://saaspulse.com/dashboard`);
+    
+    // Simulate async network delay
+    return new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  /**
+   * Simulates sending an activity alert for significant business events.
+   */
+  static async sendActivityAlert(to: string, event: string, metadata: any) {
+    console.log(`\n[EMAIL] 📧 Sending Activity Alert to: ${to}`);
+    console.log(`[EMAIL] 🚨 Significant Pulse: ${event}`);
+    console.log(`[EMAIL] 📄 Details: ${JSON.stringify(metadata, null, 2)}`);
+    console.log(`[EMAIL] -----------------------------------\n`);
+    
+    return new Promise((resolve) => setTimeout(resolve, 300));
+  }
+
+  /**
+   * Simulates sending a high-value sale alert.
+   */
+  static async sendHighValueAlert(to: string, amount: number, customer: string) {
+    console.log(`\n[EMAIL] 💰 HIGH VALUE SALE ALERT to: ${to}`);
+    console.log(`[EMAIL] 🚀 Cha-ching! You just made $${amount} from ${customer}!`);
+    console.log(`[EMAIL] 🔗 View details: https://saaspulse.com/dashboard`);
+    console.log(`[EMAIL] -----------------------------------\n`);
+    
+    return new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  /**
+   * Simulates sending an admin alert for significant business events.
+   */
+  static async sendAdminAlert(subject: string, message: string) {
+    console.log(`[EMAIL] 🚨 ADMIN ALERT: ${subject}`);
+    console.log(`[EMAIL] 📄 Message: ${message}`);
+    
+    return new Promise((resolve) => setTimeout(resolve, 300));
+  }
+}

@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String        @id @default(uuid())
+  name         String
+  email        String        @unique
+  password     String
+  Role         Role          @default(USER)
+  image        String? // For profile pictures
+  createdAt    DateTime      @default(now())
+  subscription Subscription?
+  activities   Activity[]
+  apiKeys      ApiKey[]
+}
+
+model ApiKey {
+  id        String    @id @default(uuid())
+  key       String    @unique // The actual "sp_..." key
+  name      String    @default("Default Key")
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  createdAt DateTime  @default(now())
+  lastUsed  DateTime?
+}
+
+model Subscription {
+  id               String    @id @default(uuid())
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id])
+  plan             Plan      @default(FREE)
+  status           Status    @default(ACTIVE)
+  mrr              Float     @default(0.0)
+  stripeCustomerId String?   @unique
+  expiry           DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @default(now()) @updatedAt
+}
+
+model Activity {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  event     String // e.g., "USER_SIGNUP", "PLAN_UPGRADE"
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
+
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum Status {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+}
+
+enum Role {
+  USER
+  ADMIN
+}
