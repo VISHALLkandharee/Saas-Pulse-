@@ -30,6 +30,6 @@ exports.ingestRateLimiter = (0, express_rate_limit_1.default)({
     },
     keyGenerator: (req) => {
         // Limit based on the API Key (userId) rather than IP
-        return req.integrationUser?.userId || req.ip;
+        return req.integrationUser?.userId || "anonymous";
     }
 });

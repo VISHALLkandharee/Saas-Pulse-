@@ -23,7 +23,7 @@ export const ingestEvent = async (req: Request, res: Response) => {
     
     // Monthly pulse limits
     const limits = { FREE: 1000, PRO: 50000, ENTERPRISE: Infinity };
-    const limit = limits[plan];
+    const limit = limits[plan as keyof typeof limits];
 
     if (limit !== Infinity) {
       const startOfMonth = new Date();

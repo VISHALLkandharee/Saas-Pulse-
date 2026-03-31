@@ -184,8 +184,8 @@ export class MetricsService {
       const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
 
       const mRev = pulses
-        .filter(p => p.createdAt >= mStart && p.createdAt <= mEnd)
-        .reduce((sum, p) => {
+        .filter((p: any) => p.createdAt >= mStart && p.createdAt <= mEnd)
+        .reduce((sum: number, p: any) => {
           const m = p.metadata as any || {};
           const v = m.mrr || m.amount || m.value || 0;
           return sum + (typeof v === 'number' ? v : (parseFloat(v) || 0));
@@ -249,7 +249,7 @@ export class MetricsService {
     // Filter out soft-deleted items before returning the exact requested amount
     const visibleActivities = activities.filter((a: any) => !(a.metadata?.hiddenFromFeed));
 
-    return visibleActivities.slice(0, isAdmin ? 50 : 20).map((a) => {
+    return visibleActivities.slice(0, isAdmin ? 50 : 20).map((a: any) => {
       const isOwner = String(a.userId) === String(userId);
       let displayEmail = (a.user as any)?.email || "external@user.com";
       

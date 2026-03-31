@@ -19,13 +19,24 @@ class EmailService {
         return new Promise((resolve) => setTimeout(resolve, 500));
     }
     /**
-     * Simulates sending a activity alert for significant business events.
+     * Simulates sending an activity alert for significant business events.
      */
     static async sendActivityAlert(to, event, metadata) {
-        console.log(`[EMAIL] 📧 Sending Activity Alert to: ${to}`);
+        console.log(`\n[EMAIL] 📧 Sending Activity Alert to: ${to}`);
         console.log(`[EMAIL] 🚨 Significant Pulse: ${event}`);
-        console.log(`[EMAIL] 📄 Details: ${JSON.stringify(metadata)}`);
+        console.log(`[EMAIL] 📄 Details: ${JSON.stringify(metadata, null, 2)}`);
+        console.log(`[EMAIL] -----------------------------------\n`);
         return new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    /**
+     * Simulates sending a high-value sale alert.
+     */
+    static async sendHighValueAlert(to, amount, customer) {
+        console.log(`\n[EMAIL] 💰 HIGH VALUE SALE ALERT to: ${to}`);
+        console.log(`[EMAIL] 🚀 Cha-ching! You just made $${amount} from ${customer}!`);
+        console.log(`[EMAIL] 🔗 View details: https://saaspulse.com/dashboard`);
+        console.log(`[EMAIL] -----------------------------------\n`);
+        return new Promise((resolve) => setTimeout(resolve, 500));
     }
     /**
      * Simulates sending an admin alert for significant business events.

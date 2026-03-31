@@ -10,10 +10,13 @@ require("dotenv/config");
 const http_1 = require("http");
 const app_1 = __importDefault(require("./app"));
 const socket_1 = require("./utils/socket");
+const redis_1 = require("./utils/redis");
 const port = process.env.PORT || 8000;
 const httpServer = (0, http_1.createServer)(app_1.default);
 // Initialize Socket.io
 (0, socket_1.initSocket)(httpServer);
+// Initialize Redis
+(0, redis_1.connectRedis)();
 httpServer.listen(port, () => {
     console.log(`Server is listening on http://localhost:${port}`);
 });

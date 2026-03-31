@@ -107,7 +107,7 @@ const stripeWebhook = async (req, res) => {
                 // Notify affected users via sockets
                 try {
                     const { getIO } = require("../utils/socket");
-                    affectedSubscriptions.forEach(sub => {
+                    affectedSubscriptions.forEach((sub) => {
                         getIO().emit("subscription-updated", { userId: sub.userId, plan: newPlan, status: subStatus });
                     });
                 }

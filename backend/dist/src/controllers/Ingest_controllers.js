@@ -39,6 +39,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ingestEvent = void 0;
 const prisma_1 = __importDefault(require("../utils/prisma"));
 const socket_1 = require("../utils/socket");
+const redis_1 = require("../utils/redis");
 const ingestEvent = async (req, res) => {
     try {
         // This userId is injected by the verifyApiKey middleware
@@ -93,10 +94,17 @@ const ingestEvent = async (req, res) => {
         // Tier Feature: Activity Alerts (PRO/ENTERPRISE)
         if (plan !== "FREE" && newActivity.user?.email) {
             const isCritical = String(event).toUpperCase().includes("CRITICAL") || metadata?.alert === true;
-            if (isCritical) {
+            const mrrValue = metadata?.mrr || metadata?.amount || metadata?.value || 0;
+            const isHighValue = typeof mrrValue === 'number' && mrrValue >= 50;
+            if (isCritical || isHighValue) {
                 // We don't await this to keep ingestion latency low
                 Promise.resolve().then(() => __importStar(require("../services/Email_service"))).then(({ EmailService }) => {
-                    EmailService.sendActivityAlert(newActivity.user.email, newActivity.event, newActivity.metadata);
+                    if (isHighValue) {
+                        EmailService.sendHighValueAlert(newActivity.user.email, mrrValue, metadata?.customer || "a new customer");
+                    }
+                    else {
+                        EmailService.sendActivityAlert(newActivity.user.email, newActivity.event, newActivity.metadata);
+                    }
                 });
             }
         }
@@ -118,9 +126,12 @@ const ingestEvent = async (req, res) => {
                 metadata: newActivity.metadata,
                 isOwner: false // Frontend will determine this
             });
+            // Clear Redis cache to ensure real-time dashboard updates
+            await (0, redis_1.invalidateCache)(`user-stats:${userId}`);
+            await (0, redis_1.invalidateCache)(`admin-stats:overall`);
         }
         catch (err) {
-            console.error("[SOCKET] Failed to emit event:", err);
+            console.error("[SOCKET/CACHE] Failed to emit event or invalidate cache:", err);
         }
         // Bonus feature: If it's a paid event, we could also theoretically update the MRR or Subscription tables here,
         // but for the basic "Pulse", we just ingest it as an activity to display on the dashboard stream.

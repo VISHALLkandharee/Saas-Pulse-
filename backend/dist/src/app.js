@@ -13,6 +13,7 @@ const Metrics_routes_1 = __importDefault(require("./routes/Metrics_routes"));
 const subscription_routes_1 = __importDefault(require("./routes/subscription_routes"));
 const ApiKey_routes_1 = __importDefault(require("./routes/ApiKey_routes"));
 const Ingest_routes_1 = __importDefault(require("./routes/Ingest_routes"));
+const Admin_routes_1 = __importDefault(require("./routes/Admin_routes"));
 const Stripe_Webhook_controller_1 = require("./controllers/Stripe_Webhook_controller");
 const ErrorHandler_middleware_1 = __importDefault(require("./middlewares/ErrorHandler_middleware"));
 const app = (0, express_1.default)();
@@ -23,7 +24,11 @@ app.use((req, res, next) => {
 });
 //security middlewares
 app.use((0, helmet_1.default)());
-const allowedOrigins = ["http://localhost:3000", "http://192.168.10.23:3000"];
+const allowedOrigins = [
+    "http://localhost:3000",
+    "http://192.168.10.23:3000",
+    process.env.CLIENT_URL, // Allows production domains
+].filter(Boolean);
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
         // allow requests with no origin (like Postman)
@@ -49,5 +54,6 @@ app.use("/api/metrics", Metrics_routes_1.default);
 app.use("/api/subscriptions", subscription_routes_1.default);
 app.use("/api/keys", ApiKey_routes_1.default);
 app.use("/api/v1", Ingest_routes_1.default);
+app.use("/api/admin", Admin_routes_1.default);
 app.use(ErrorHandler_middleware_1.default);
 exports.default = app;

@@ -3,10 +3,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getIO = exports.initSocket = void 0;
 const socket_io_1 = require("socket.io");
 let io;
+const allowedOrigins = [
+    "http://localhost:3000",
+    "http://192.168.10.23:3000",
+    process.env.CLIENT_URL, // Allows production domains
+].filter(Boolean);
 const initSocket = (server) => {
     io = new socket_io_1.Server(server, {
         cors: {
-            origin: ["http://localhost:3000", "http://192.168.10.23:3000"],
+            origin: allowedOrigins,
             methods: ["GET", "POST"],
             credentials: true
         }

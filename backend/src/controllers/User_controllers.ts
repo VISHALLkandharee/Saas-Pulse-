@@ -69,7 +69,7 @@ const registerUser = async (req: Request, res: Response) => {
         event: "USER_SIGNUP",
         metadata: { welcome: true },
       },
-    }).catch(err => console.error("[AUTH] Activity log failed:", err));
+    }).catch((err: any) => console.error("[AUTH] Activity log failed:", err));
 
     // Send Welcome Email (Non-blocking)
     EmailService.sendWelcomeEmail(user.email, user.name).catch((err: any) => {

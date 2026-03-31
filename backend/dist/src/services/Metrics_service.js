@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MetricsService = void 0;
 const prisma_1 = __importDefault(require("../utils/prisma"));
+const redis_1 = require("../utils/redis");
 class MetricsService {
     /**
      * Returns dashboard stats for the founder.
@@ -23,6 +24,10 @@ class MetricsService {
      * Returns aggregate system-wide stats for the ADMIN role.
      */
     static async getAdminStats() {
+        const cacheKey = 'admin-stats:overall';
+        const cachedStats = await (0, redis_1.getCache)(cacheKey);
+        if (cachedStats)
+            return cachedStats;
         const now = new Date();
         const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         // 1. Current Stats
@@ -78,7 +83,7 @@ class MetricsService {
             });
             revenueHistory.push({ month: monthName, revenue: histRevenue._sum?.mrr || 0 });
         }
-        return {
+        const result = {
             mrr: {
                 value: mrrValue,
                 trend: MetricsService.calculateTrend(mrrValue, prevMrrValue),
@@ -101,12 +106,18 @@ class MetricsService {
             },
             revenueHistory,
         };
+        await (0, redis_1.setCache)(cacheKey, result, 3600); // Cache for 1 hour
+        return result;
     }
     /**
      * Returns stats for an individual founder.
      * Logic: Decouple "Platform Usage" from "Business Revenue".
      */
     static async getUserStats(userId, role) {
+        const cacheKey = `user-stats:${userId}`;
+        const cachedStats = await (0, redis_1.getCache)(cacheKey);
+        if (cachedStats)
+            return cachedStats;
         const now = new Date();
         const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -149,7 +160,7 @@ class MetricsService {
                     prevCustomerIds.add(String(custId));
             }
         });
-        const apiKeyRecord = await prisma_1.default.apiKey.findFirst({
+        let apiKeyRecord = await prisma_1.default.apiKey.findFirst({
             where: { userId },
             orderBy: { createdAt: 'desc' }
         });
@@ -161,7 +172,7 @@ class MetricsService {
             const mStart = new Date(d.getFullYear(), d.getMonth(), 1);
             const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
             const mRev = pulses
-                .filter(p => p.createdAt >= mStart && p.createdAt <= mEnd)
+                .filter((p) => p.createdAt >= mStart && p.createdAt <= mEnd)
                 .reduce((sum, p) => {
                 const m = p.metadata || {};
                 const v = m.mrr || m.amount || m.value || 0;
@@ -169,7 +180,7 @@ class MetricsService {
             }, 0);
             revenueHistory.push({ month: mName, revenue: mRev });
         }
-        return {
+        const result = {
             mrr: {
                 value: currentMonthMrr,
                 trend: MetricsService.calculateTrend(currentMonthMrr, prevMonthMrr),
@@ -191,8 +202,11 @@ class MetricsService {
                 percent: Math.min(Math.round((usageCount / limit) * 100), 100)
             },
             apiKey: apiKeyRecord?.key || null,
+            hasIntegrated: !!apiKeyRecord, // True if they've at least generated a key once
             revenueHistory,
         };
+        await (0, redis_1.setCache)(cacheKey, result, 3600); // Cache for 1 hour
+        return result;
     }
     /**
      * Returns a list of recent activities.
@@ -213,9 +227,11 @@ class MetricsService {
             },
             include: { user: { select: { id: true, email: true } } },
             orderBy: { createdAt: "desc" },
-            take: isAdmin ? 50 : 20,
+            take: isAdmin ? 100 : 60, // Fetch a larger batch to account for hidden ones
         });
-        return activities.map((a) => {
+        // Filter out soft-deleted items before returning the exact requested amount
+        const visibleActivities = activities.filter((a) => !(a.metadata?.hiddenFromFeed));
+        return visibleActivities.slice(0, isAdmin ? 50 : 20).map((a) => {
             const isOwner = String(a.userId) === String(userId);
             let displayEmail = a.user?.email || "external@user.com";
             if (!isAdmin && !isOwner) {
@@ -229,6 +245,7 @@ class MetricsService {
             }
             return {
                 id: a.id,
+                userId: a.userId,
                 event: a.event,
                 timestamp: a.createdAt.toISOString(),
                 message: MetricsService.formatActivityMessage(a.event, isOwner),
@@ -247,7 +264,12 @@ class MetricsService {
             throw new Error("Activity not found");
         if (role !== "ADMIN" && activity.userId !== userId)
             throw new Error("Unauthorized");
-        return await prisma_1.default.activity.delete({ where: { id: activityId } });
+        const metadata = activity.metadata || {};
+        metadata.hiddenFromFeed = true;
+        return await prisma_1.default.activity.update({
+            where: { id: activityId },
+            data: { metadata }
+        });
     }
     static calculateTrend(current, previous) {
         if (previous === 0)

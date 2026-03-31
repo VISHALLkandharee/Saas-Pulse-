@@ -26,7 +26,7 @@ const exportSystemData = async (req, res) => {
         }
         // Generate CSV Content
         const headers = ["ID", "Timestamp", "Event", "Founder Email", "Metadata"];
-        const rows = activities.map(a => {
+        const rows = activities.map((a) => {
             const timestamp = a.createdAt.toISOString();
             const event = a.event;
             const email = a.user?.email || "external@user.com";
