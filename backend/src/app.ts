@@ -15,6 +15,7 @@ import { stripeWebhook } from "./controllers/Stripe_Webhook_controller";
 import errorHandlerMiddleware from "./middlewares/ErrorHandler_middleware";
 
 const app = express();
+app.set('trust proxy', 1);
 
 // Request logger
 app.use((req, res, next) => {
