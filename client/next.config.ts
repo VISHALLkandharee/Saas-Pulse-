@@ -16,6 +16,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/api_server/:path*',
+        destination: `${process.env.NEXT_PUBLIC_RAILWAY_URL || 'https://saas-pulse-production.up.railway.app'}/api/:path*`, 
+      },
+    ];
+  },
 };
 
 export default nextConfig;
