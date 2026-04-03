@@ -41,9 +41,8 @@ export default function RegisterPage() {
       });
       
       setAuthUser(response.data.user);
-      
-      // Middleware and context will handle redirection
-      router.refresh();
+      router.push("/dashboard");
+      router.refresh(); 
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
       setError(axiosErr.response?.data?.message || "Registration failed. Please try again.");

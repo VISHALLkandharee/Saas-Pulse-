@@ -76,6 +76,12 @@ export const stripeWebhook = async (req: Request, res: Response) => {
         }
 
         console.log(`[STRIPE] Database updated successfully for user ${userId}`);
+        
+        // Final Step: Invalidate cache so dashboard shows fresh PRO data instantly
+        const { invalidateCache } = require("../utils/redis");
+        await invalidateCache(`user-stats:${userId}`);
+        await invalidateCache("admin-stats:overall");
+        
       } catch (dbError) {
         console.error(`[STRIPE] Database update failed for user ${userId}:`, dbError);
         return res.status(500).json({ message: "Internal server error during subscription update" });
@@ -117,6 +123,13 @@ export const stripeWebhook = async (req: Request, res: Response) => {
             mrr: subStatus === "ACTIVE" ? newMrr : 0,
           },
         });
+
+        // Invalidate cache for all affected users
+        const { invalidateCache } = require("../utils/redis");
+        for (const sub of affectedSubscriptions) {
+          await invalidateCache(`user-stats:${sub.userId}`);
+        }
+        await invalidateCache("admin-stats:overall");
 
         // Notify affected users via sockets
         try {

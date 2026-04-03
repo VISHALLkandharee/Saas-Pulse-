@@ -122,18 +122,18 @@ export default function DevelopersPage() {
                   </div>
                   <h2 className="text-lg font-bold">New Pulse Connection</h2>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <input 
                     type="text"
                     value={newKeyName}
                     onChange={(e) => setNewKeyName(e.target.value)}
                     placeholder="e.g. My Next.js SaaS Production"
-                    className="flex-1 bg-zinc-950/50 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all"
+                    className="flex-1 bg-zinc-950/50 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all w-full"
                   />
                   <button 
                     onClick={handleGenerate}
                     disabled={isCreating}
-                    className="bg-white text-black px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-zinc-200 transition-all disabled:opacity-50 flex items-center gap-2 whitespace-nowrap shadow-lg shadow-white/5"
+                    className="bg-white text-black px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-zinc-200 transition-all disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap shadow-lg shadow-white/5 w-full sm:w-auto"
                   >
                     {isCreating ? <div className="w-4 h-4 border-2 border-zinc-400 border-t-black rounded-full animate-spin" /> : <Plus size={18} />}
                     Generate Key

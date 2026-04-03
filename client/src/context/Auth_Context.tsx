@@ -65,13 +65,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    // 1. Optimistically clear the user and redirect immediately
+    setUser(null);
+    router.push("/login");
+
+    // 2. Clear server-side session in the background
     try {
-      await api.get("/auth/logout");
+      api.get("/auth/logout").catch((err: any) => {
+        console.error("Background server logout failed:", err);
+      });
     } catch (error) {
-      console.error("Server logout failed", error);
-    } finally {
-      setUser(null);
-      router.push("/login");
+      console.error("Failed to trigger background logout", error);
     }
   };
 
