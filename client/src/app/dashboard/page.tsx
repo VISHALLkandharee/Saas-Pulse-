@@ -114,6 +114,7 @@ export default function DashboardPage() {
     // Connect to Socket.io server
     const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:8000", {
       withCredentials: true,
+      transports: ["websocket", "polling"],
     });
 
     socket.on("connect", () => {
