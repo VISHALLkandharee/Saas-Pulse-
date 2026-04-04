@@ -153,22 +153,23 @@ export default function DevelopersPage() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ delay: idx * 0.05 }}
-                    className="group bg-zinc-900/50 border border-zinc-800 p-5 rounded-2xl flex items-center justify-between hover:bg-zinc-800/30 transition-all"
+                    className="group bg-zinc-900/50 border border-zinc-800 p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-zinc-800/30 transition-all shadow-lg"
                   >
-                    <div className="space-y-2 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-zinc-200">{key.name}</span>
-                        <span className="text-[10px] bg-zinc-800 px-2 py-0.5 rounded text-zinc-500 font-mono">
-                          CREATED: {new Date(key.createdAt).toLocaleDateString()}
+                    <div className="space-y-3 w-full sm:flex-1">
+                      <div className="flex flex-col xs:flex-row xs:items-center gap-2">
+                        <span className="font-bold text-zinc-200 truncate">{key.name}</span>
+                        <span className="text-[9px] bg-zinc-800/50 px-2 py-0.5 rounded text-zinc-500 font-mono w-fit border border-zinc-800/50">
+                          {new Date(key.createdAt).toLocaleDateString()}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="bg-zinc-950 border border-zinc-800 px-3 py-1.5 rounded-lg font-mono text-xs text-emerald-500/80 flex-1 max-w-sm truncate">
+                      <div className="flex items-center gap-2 w-full">
+                        <div className="bg-zinc-950 border border-zinc-800 px-3 py-2 rounded-xl font-mono text-xs text-emerald-500/80 flex-1 truncate select-all">
                           {key.key}
                         </div>
                         <button 
                           onClick={() => copyToClipboard(key.key, key.id)}
-                          className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-white transition-all shadow-sm"
+                          className="p-2.5 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 rounded-xl text-zinc-500 hover:text-white transition-all shadow-sm shrink-0"
+                          title="Copy Key"
                         >
                           {copiedId === key.id ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
                         </button>
@@ -176,7 +177,8 @@ export default function DevelopersPage() {
                     </div>
                     <button 
                       onClick={() => handleDelete(key.id)}
-                      className="p-2.5 text-zinc-700 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                      className="p-2.5 text-zinc-600 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all sm:opacity-0 group-hover:opacity-100 self-end sm:self-center border border-transparent hover:border-rose-500/20"
+                      title="Revoke Key"
                     >
                       <Trash2 size={18} />
                     </button>
