@@ -421,6 +421,52 @@ const changePassword = async (req: Request, res: Response) => {
   }
 };
 
+const githubAuthCallback = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (!user) {
+      return res.redirect(`${process.env.CLIENT_URL}/login?error=auth_failed`);
+    }
+
+    const accessToken = generateAccessToken({
+      userId: user.id,
+      email: user.email,
+      role: user.Role,
+    });
+
+    const refreshToken = generateRefreshToken({
+      userId: user.id,
+      email: user.email,
+      role: user.Role,
+    });
+
+    const accessTokenOptions: any = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 15 * 60 * 1000,
+      sameSite: "lax",
+      path: "/",
+    };
+
+    const refreshTokenOptions: any = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: "lax",
+      path: "/",
+    };
+
+    res.cookie("accessToken", accessToken, accessTokenOptions);
+    res.cookie("refreshToken", refreshToken, refreshTokenOptions);
+
+    // Redirect to dashboard on success
+    res.redirect(`${process.env.CLIENT_URL}/dashboard`);
+  } catch (error) {
+    console.error("GitHub Auth Callback Error:", error);
+    res.redirect(`${process.env.CLIENT_URL}/login?error=server_error`);
+  }
+};
+
 const deleteAccount = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.userId;
@@ -446,5 +492,6 @@ export {
   getallUsers, 
   refreshAccessToken, 
   changePassword, 
-  deleteAccount 
+  deleteAccount,
+  githubAuthCallback
 };

@@ -107,10 +107,13 @@ export default function LoginPage() {
         </div>
 
         <div className="grid grid-cols-1 mt-6">
-          <button className="flex items-center justify-center gap-3 bg-zinc-900 border border-zinc-800 py-3 rounded-2xl hover:bg-zinc-800 transition-colors">
+          <a 
+            href={`${process.env.NEXT_PUBLIC_API_URL}/auth/github`}
+            className="flex items-center justify-center gap-3 bg-zinc-900 border border-zinc-800 py-3 rounded-2xl hover:bg-zinc-800 transition-colors cursor-pointer"
+          >
             <Github size={20} />
             <span className="text-sm font-medium">Authentication with GitHub</span>
-          </button>
+          </a>
         </div>
 
         <p className="text-center text-zinc-500 text-sm mt-8">

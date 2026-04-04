@@ -15,9 +15,13 @@ import { stripeWebhook } from "./controllers/Stripe_Webhook_controller";
 import errorHandlerMiddleware from "./middlewares/ErrorHandler_middleware";
 
 import { generalRateLimiter } from "./middlewares/RateLimit_middleware";
+import passport from "./utils/Passport_config";
 
 const app = express();
 app.set('trust proxy', 1);
+
+// Initialize Passport for GitHub OAuth
+app.use(passport.initialize());
 
 // Apply global rate limiting to protect the server
 app.use(generalRateLimiter);
@@ -33,7 +37,6 @@ app.use(helmet());
 
 const allowedOrigins = [
   "http://localhost:3000", 
-  "http://192.168.10.23:3000",
   process.env.CLIENT_URL, // Allows production domains
 ].filter(Boolean) as string[];
 
