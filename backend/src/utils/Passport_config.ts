@@ -15,12 +15,14 @@ passport.use(
     },
     async (accessToken: string, refreshToken: string, profile: any, done: any) => {
       try {
+        console.log(`[AUTH] GitHub login attempt for: ${profile.username}`);
         const email = profile.emails?.[0]?.value;
         const name = profile.displayName || profile.username || "GitHub User";
         const image = profile.photos?.[0]?.value;
 
         if (!email) {
-          return done(new Error("GitHub account must have a public email"), null);
+          console.error(`[AUTH] GitHub login failed: No public email found for ${profile.username}`);
+          return done(null, false, { message: "GitHub account must have a public email" });
         }
 
         // Find or Create user

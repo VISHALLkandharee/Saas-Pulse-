@@ -108,7 +108,7 @@ export default function LoginPage() {
 
         <div className="grid grid-cols-1 mt-6">
           <a 
-            href={`${process.env.NEXT_PUBLIC_API_URL}/auth/github`}
+            href="/api_server/auth/github"
             className="flex items-center justify-center gap-3 bg-zinc-900 border border-zinc-800 py-3 rounded-2xl hover:bg-zinc-800 transition-colors cursor-pointer"
           >
             <Github size={20} />
