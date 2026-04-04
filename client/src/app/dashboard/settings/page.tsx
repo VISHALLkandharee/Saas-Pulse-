@@ -3,7 +3,17 @@
 import { useState, useRef } from "react";
 import { useAuth } from "@/context/Auth_Context";
 import { motion } from "framer-motion";
-import { Save, User, Camera, Loader2, CheckCircle2, Lock, ShieldAlert, Trash2 } from "lucide-react";
+import {
+  Save,
+  User,
+  Camera,
+  Loader2,
+  CheckCircle2,
+  Lock,
+  ShieldAlert,
+  Trash2,
+  ArrowLeft,
+} from "lucide-react";
 import Image from "next/image";
 import api from "@/lib/api";
 
@@ -35,7 +45,9 @@ export default function SettingsPage() {
   const getAvatarUrl = (path: string | undefined | null) => {
     if (!path) return null;
     if (path.startsWith("http")) return path;
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:8000";
+    const baseUrl =
+      process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ||
+      "http://localhost:8000";
     return `${baseUrl}${path}`;
   };
 
@@ -111,7 +123,9 @@ export default function SettingsPage() {
       setNewPassword("");
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
-      setPasswordError(axiosErr.response?.data?.message || "Failed to change password.");
+      setPasswordError(
+        axiosErr.response?.data?.message || "Failed to change password.",
+      );
     } finally {
       setPasswordLoading(false);
     }
@@ -133,21 +147,71 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-[#050505] text-zinc-300 p-8 pt-24 font-sans selection:bg-emerald-500/30">
       <div className="max-w-3xl mx-auto space-y-8">
-        
         {/* Header */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex justify-between items-end border-b border-zinc-800 pb-6"
         >
           <div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">Account Settings</h1>
-            <p className="text-zinc-500 mt-2">Manage your public profile and preferences.</p>
+            <h1 className="text-3xl font-bold text-white tracking-tight">
+              Account Settings
+            </h1>
+            <p className="text-zinc-500 mt-2">
+              Manage your public profile and preferences.
+            </p>
+          </div>
+        </motion.div>
+
+        {/* Billing Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-8 relative overflow-hidden group hover:border-emerald-500/20 transition-all"
+        >
+          <div className="flex items-center justify-between gap-6 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                <CheckCircle2 size={20} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white leading-none">
+                  Billing & Subscription
+                </h2>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className="text-xs text-zinc-500">Current Plan:</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    {user?.subscription?.plan || "FREE"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={async () => {
+                try {
+                  const res = await api.post("/subscriptions/portal");
+                  if (res.data.url) {
+                    window.location.href = res.data.url;
+                  }
+                } catch (err) {
+                  console.error("Failed to open billing portal", err);
+                  alert(
+                    "Billing portal is only available for paid subscribers or accounts with a Stripe ID.",
+                  );
+                }
+              }}
+              className="bg-zinc-800 hover:bg-white hover:text-black text-white px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg flex items-center gap-2"
+            >
+              Manage Billing
+              <ArrowLeft className="rotate-180" size={16} />
+            </button>
           </div>
         </motion.div>
 
         {/* Content Box */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
@@ -157,36 +221,43 @@ export default function SettingsPage() {
           <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none" />
 
           <div className="flex flex-col md:flex-row gap-12 relative z-10">
-            
             {/* Left: Avatar Upload */}
             <div className="flex flex-col items-center gap-4">
-              <div 
+              <div
                 onClick={handleImageClick}
                 className="relative w-32 h-32 rounded-full border-2 border-zinc-700 bg-zinc-800 flex items-center justify-center overflow-hidden cursor-pointer group transition-all hover:border-emerald-500/50"
               >
                 {currentAvatar ? (
-                  <Image 
-                    src={currentAvatar} 
-                    alt="Avatar" 
-                    width={128} 
-                    height={128} 
-                    unoptimized={currentAvatar.startsWith('http://localhost') || currentAvatar.startsWith('blob:')}
-                    className="w-full h-full object-cover" 
+                  <Image
+                    src={currentAvatar}
+                    alt="Avatar"
+                    width={128}
+                    height={128}
+                    unoptimized={
+                      currentAvatar.startsWith("http://localhost") ||
+                      currentAvatar.startsWith("blob:")
+                    }
+                    className="w-full h-full object-cover"
                   />
                 ) : (
-                  <User size={40} className="text-zinc-500 group-hover:text-zinc-400 transition-colors" />
+                  <User
+                    size={40}
+                    className="text-zinc-500 group-hover:text-zinc-400 transition-colors"
+                  />
                 )}
 
                 {/* Hover Overlay */}
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center backdrop-blur-sm">
                   <Camera size={24} className="text-white mb-1" />
-                  <span className="text-[10px] font-medium text-white uppercase tracking-wider">Change</span>
+                  <span className="text-[10px] font-medium text-white uppercase tracking-wider">
+                    Change
+                  </span>
                 </div>
               </div>
-              
-              <input 
-                type="file" 
-                ref={fileInputRef} 
+
+              <input
+                type="file"
+                ref={fileInputRef}
                 onChange={handleFileChange}
                 accept="image/*"
                 className="hidden"
@@ -198,14 +269,18 @@ export default function SettingsPage() {
 
             {/* Right: Form Info */}
             <div className="flex-1 space-y-6">
-              
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Full Name</label>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                    Full Name
+                  </label>
                   <input
                     type="text"
                     value={name}
-                    onChange={(e) => { setName(e.target.value); setSuccess(false); }}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      setSuccess(false);
+                    }}
                     className="w-full bg-zinc-950 border border-zinc-800 focus:border-emerald-500/50 rounded-xl px-4 py-3 text-white placeholder-zinc-700 outline-none transition-all shadow-inner"
                     placeholder="E.g. Elon Musk"
                   />
@@ -214,7 +289,9 @@ export default function SettingsPage() {
                 <div className="space-y-1.5 opacity-60 cursor-not-allowed">
                   <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500 flex justify-between">
                     <span>Email Address</span>
-                    <span className="text-[10px] bg-zinc-800 px-2 py-0.5 rounded text-zinc-400 normal-case tracking-normal">Immutable</span>
+                    <span className="text-[10px] bg-zinc-800 px-2 py-0.5 rounded text-zinc-400 normal-case tracking-normal">
+                      Immutable
+                    </span>
                   </label>
                   <input
                     type="text"
@@ -223,9 +300,11 @@ export default function SettingsPage() {
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-500 outline-none shadow-inner"
                   />
                 </div>
-                
+
                 <div className="space-y-1.5 opacity-60 cursor-not-allowed">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Account Role</label>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                    Account Role
+                  </label>
                   <input
                     type="text"
                     value={user?.Role || "USER"}
@@ -242,7 +321,7 @@ export default function SettingsPage() {
                 </p>
               )}
               {success && (
-                <motion.p 
+                <motion.p
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="text-sm border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 p-3 rounded-lg flex items-center gap-2"
@@ -259,19 +338,22 @@ export default function SettingsPage() {
                   className="bg-white text-black font-semibold py-2.5 px-6 rounded-xl shadow-lg hover:shadow-white/20 hover:-translate-y-0.5 transition-all outline-none focus:ring-2 focus:ring-white/50 active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2"
                 >
                   {loading ? (
-                    <><Loader2 size={16} className="animate-spin" /> Saving...</>
+                    <>
+                      <Loader2 size={16} className="animate-spin" /> Saving...
+                    </>
                   ) : (
-                    <><Save size={16} /> Save Changes</>
+                    <>
+                      <Save size={16} /> Save Changes
+                    </>
                   )}
                 </button>
               </div>
-
             </div>
           </div>
         </motion.div>
 
         {/* Security Section */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -282,14 +364,20 @@ export default function SettingsPage() {
               <Lock size={20} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white leading-none">Security</h2>
-              <p className="text-xs text-zinc-500 mt-1">Update your password to keep your account safe.</p>
+              <h2 className="text-xl font-bold text-white leading-none">
+                Security
+              </h2>
+              <p className="text-xs text-zinc-500 mt-1">
+                Update your password to keep your account safe.
+              </p>
             </div>
           </div>
 
           <form onSubmit={handleChangePassword} className="max-w-md space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Current Password</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                Current Password
+              </label>
               <input
                 type="password"
                 value={currentPassword}
@@ -299,7 +387,9 @@ export default function SettingsPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">New Password</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                New Password
+              </label>
               <input
                 type="password"
                 value={newPassword}
@@ -309,8 +399,14 @@ export default function SettingsPage() {
               />
             </div>
 
-            {passwordError && <p className="text-xs text-rose-400">⚠️ {passwordError}</p>}
-            {passwordSuccess && <p className="text-xs text-emerald-400">✅ Password changed successfully!</p>}
+            {passwordError && (
+              <p className="text-xs text-rose-400">⚠️ {passwordError}</p>
+            )}
+            {passwordSuccess && (
+              <p className="text-xs text-emerald-400">
+                ✅ Password changed successfully!
+              </p>
+            )}
 
             <button
               type="submit"
@@ -323,7 +419,7 @@ export default function SettingsPage() {
         </motion.div>
 
         {/* Danger Zone */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
@@ -334,19 +430,26 @@ export default function SettingsPage() {
               <ShieldAlert size={20} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white leading-none">Danger Zone</h2>
-              <p className="text-xs text-zinc-500 mt-1">Irreversible actions for your account.</p>
+              <h2 className="text-xl font-bold text-white leading-none">
+                Danger Zone
+              </h2>
+              <p className="text-xs text-zinc-500 mt-1">
+                Irreversible actions for your account.
+              </p>
             </div>
           </div>
 
           <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="space-y-1 text-center md:text-left">
               <h4 className="font-bold text-white">Delete Account</h4>
-              <p className="text-xs text-zinc-500">This will permanently delete your profile, integration keys, and pulse history.</p>
+              <p className="text-xs text-zinc-500">
+                This will permanently delete your profile, integration keys, and
+                pulse history.
+              </p>
             </div>
-            
+
             {!showDeleteConfirm ? (
-              <button 
+              <button
                 onClick={() => setShowDeleteConfirm(true)}
                 className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 px-6 py-2.5 rounded-xl font-bold text-sm transition-all"
               >
@@ -354,18 +457,22 @@ export default function SettingsPage() {
               </button>
             ) : (
               <div className="flex items-center gap-2">
-                <button 
+                <button
                   onClick={() => setShowDeleteConfirm(false)}
                   className="bg-zinc-800 text-zinc-300 px-4 py-2 rounded-xl text-sm font-bold"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={handleDeleteAccount}
                   disabled={deleteLoading}
                   className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2"
                 >
-                  {deleteLoading ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                  {deleteLoading ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Trash2 size={16} />
+                  )}
                   Confirm Delete
                 </button>
               </div>

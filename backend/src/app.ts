@@ -14,8 +14,13 @@ import adminRoutes from "./routes/Admin_routes";
 import { stripeWebhook } from "./controllers/Stripe_Webhook_controller";
 import errorHandlerMiddleware from "./middlewares/ErrorHandler_middleware";
 
+import { generalRateLimiter } from "./middlewares/RateLimit_middleware";
+
 const app = express();
 app.set('trust proxy', 1);
+
+// Apply global rate limiting to protect the server
+app.use(generalRateLimiter);
 
 // Request logger
 app.use((req, res, next) => {
