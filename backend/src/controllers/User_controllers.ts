@@ -10,8 +10,6 @@ import { Request, Response } from "express";
 import { EmailService } from "../services/Email_service";
 
 const registerUser = async (req: Request, res: Response) => {
-
-
   try {
     const { name, email, password, adminId, image: imageUrl } = req.body;
     console.log(`[AUTH] Register request from origin: ${req.headers.origin}`);
@@ -144,8 +142,6 @@ const loginUser = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
-    console.log(user)
-
     const isPasswordValid = await comparePassword(password, user.password);
 
     if (!isPasswordValid) {
@@ -158,7 +154,7 @@ const loginUser = async (req: Request, res: Response) => {
         userId: user.id,
         event: "USER_LOGIN",
         createdAt: {
-          gt: new Date(Date.now() - 2 * 60 * 60 * 1000) // Increase window to 2 hours
+          gt: new Date(Date.now() - 2 * 60 * 60 * 1000)
         }
       }
     });
@@ -173,7 +169,6 @@ const loginUser = async (req: Request, res: Response) => {
       });
     }
 
-    // Remove password before sending
     const { password: _, ...userWithoutPassword } = user;
 
     const accessTokenOptions: any = {
@@ -225,7 +220,6 @@ const getprofile = async (req: Request, res: Response) => {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-
       select: {
         id: true,
         name: true,
@@ -237,43 +231,40 @@ const getprofile = async (req: Request, res: Response) => {
       },
     });
 
-    if (!user)
-      return res.status(404).json({
-        message: "User not found",
-      });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
     res.status(200).json({
       message: "User profile fetched successfully",
       user,
     });
   } catch (error) {
-    console.log("Failed fetching user profile", error);
+    console.error("Failed fetching user profile", error);
     res.status(500).json({ message: "Failed fetching user profile" });
   }
 };
 
 const logoutUser = async (req: Request, res: Response) => {
   try {
-    res
-      .status(200)
-      .clearCookie("accessToken")
-      .clearCookie("refreshToken")
-      .json({ message: "User logged out successfully" });
+    const cookieOptions: any = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    };
+
+    res.clearCookie("accessToken", cookieOptions);
+    res.clearCookie("refreshToken", cookieOptions);
+    res.status(200).json({ message: "User logged out successfully" });
   } catch (error) {
-    console.log("Failed logging user out", error);
+    console.error("Failed logging user out", error);
     res.status(500).json({ message: "Failed logging user out" });
   }
 };
 
-
-
-
-//admin only
-async function getallUsers(req:Request, res:Response) {
+const getallUsers = async (req: Request, res: Response) => {
   try {
-
-    console.log("user role : ", (req as any).user.Role)
-
     const users = await prisma.user.findMany({
       select: {
         id: true,
@@ -296,20 +287,14 @@ async function getallUsers(req:Request, res:Response) {
       message: "Users fetched successfully",
       users,
     });
-
   } catch (error) {
-    console.log("Failed getting all users",error)
-    res.status(500).json({message:"Failed getting all users"})
+    console.error("Failed getting all users", error);
+    res.status(500).json({ message: "Failed getting all users" });
   }
-}
+};
 
-
-
-
-
-//generte Access-Token when it is expired!!
-const refreshAccessToken = async  (req:Request, res:Response) => {
-  const refreshToken = req.cookies.refreshToken;  
+const refreshAccessToken = async (req: Request, res: Response) => {
+  const refreshToken = req.cookies.refreshToken;
 
   if (!refreshToken) {
     return res.status(401).json({ message: "Refresh token not found" });
@@ -344,13 +329,13 @@ const refreshAccessToken = async  (req:Request, res:Response) => {
       .cookie("accessToken", accessToken, accessTokenOptions)
       .json({ message: "Access token refreshed successfully" });
   } catch (error: any) {
-    console.log("Failed refreshing access token", error);
+    console.error("Failed refreshing access token", error);
     if (error.name === "TokenExpiredError") {
       return res.status(401).json({ message: "Refresh token expired. Please login again." });
     }
     res.status(500).json({ message: "Failed refreshing access token" });
   }
-}
+};
 
 const updateProfile = async (req: Request, res: Response) => {
   try {
@@ -470,12 +455,18 @@ const githubAuthCallback = async (req: Request, res: Response) => {
 const deleteAccount = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.userId;
-    
-    // Prisma cascading deletion should handle related records (API keys, logic, etc.)
+
     await prisma.user.delete({ where: { id: userId } });
 
-    res.clearCookie("accessToken");
-    res.clearCookie("refreshToken");
+    const cookieOptions: any = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    };
+
+    res.clearCookie("accessToken", cookieOptions);
+    res.clearCookie("refreshToken", cookieOptions);
     res.status(200).json({ message: "Account deleted successfully" });
   } catch (error) {
     console.error("Failed deleting account", error);
@@ -483,15 +474,15 @@ const deleteAccount = async (req: Request, res: Response) => {
   }
 };
 
-export { 
-  registerUser, 
-  loginUser, 
-  getprofile, 
-  updateProfile, 
-  logoutUser, 
-  getallUsers, 
-  refreshAccessToken, 
-  changePassword, 
+export {
+  registerUser,
+  loginUser,
+  getprofile,
+  updateProfile,
+  logoutUser,
+  getallUsers,
+  refreshAccessToken,
+  changePassword,
   deleteAccount,
   githubAuthCallback
 };
