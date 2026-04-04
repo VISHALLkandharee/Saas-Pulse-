@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
 
@@ -66,8 +72,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     // 1. Optimistically clear the user and redirect immediately
-    setUser(null);
     router.push("/login");
+    setUser(null);
 
     // 2. Clear server-side session in the background
     try {
