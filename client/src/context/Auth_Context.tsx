@@ -71,21 +71,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    // 1. Clear local state instantly
-    setUser(null);
-    
-    // 2. Perform a hard redirect to the login page
-    // This is more professional for Logouts as it flushes all stale memory 
-    // and ensures a clean landing on the login page.
-    window.location.href = "/login";
-
-    // 3. Clear server-side session in the background
     try {
-      api.get("/auth/logout").catch((err: any) => {
-        console.error("Background server logout failed:", err);
-      });
+      // 1. Tell the server to flush cookies and wait for it
+      // This was being skipped/cancelled before
+      await api.get("/auth/logout");
     } catch (error) {
-      console.error("Failed to trigger background logout", error);
+      console.error("Server logout failed, forcing local cleanup:", error);
+    } finally {
+      // 2. Clear local data
+      setUser(null);
+      // 3. Clear memory and refresh state
+      window.location.href = "/login";
     }
   };
 

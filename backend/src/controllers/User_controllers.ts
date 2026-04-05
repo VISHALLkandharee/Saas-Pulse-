@@ -254,12 +254,16 @@ const logoutUser = async (req: Request, res: Response) => {
       path: "/",
     };
 
+    console.log("[AUTH] Initiating session flush for user...");
+    
+    // Nuclear flush: clear both tokens with specific options
     res.clearCookie("accessToken", cookieOptions);
     res.clearCookie("refreshToken", cookieOptions);
-    res.status(200).json({ message: "User logged out successfully" });
+    
+    return res.status(200).json({ message: "Session flushed successfully" });
   } catch (error) {
-    console.error("Failed logging user out", error);
-    res.status(500).json({ message: "Failed logging user out" });
+    console.error("[AUTH] Logout error:", error);
+    return res.status(200).json({ message: "Logout attempted" }); // Still return 200 to allow frontend redirect
   }
 };
 
