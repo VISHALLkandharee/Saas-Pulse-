@@ -13,6 +13,7 @@ model User {
   password     String
   Role         Role          @default(USER)
   image        String? // For profile pictures
+  isBeta       Boolean       @default(false) // For early access tagging
   createdAt    DateTime      @default(now())
   subscription Subscription?
   activities   Activity[]
@@ -48,6 +49,12 @@ model Activity {
   user      User     @relation(fields: [userId], references: [id])
   event     String // e.g., "USER_SIGNUP", "PLAN_UPGRADE"
   metadata  Json?
+  createdAt DateTime @default(now())
+}
+
+model Waitlist {
+  id        String   @id @default(uuid())
+  email     String   @unique
   createdAt DateTime @default(now())
 }
 

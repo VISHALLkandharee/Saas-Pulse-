@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { getallUsers, getprofile, loginUser, logoutUser, updateProfile, refreshAccessToken, registerUser, changePassword, deleteAccount, githubAuthCallback } from "../controllers/User_controllers";
+import { getallUsers, getprofile, loginUser, logoutUser, updateProfile, refreshAccessToken, registerUser, changePassword, deleteAccount, githubAuthCallback, joinWaitlist } from "../controllers/User_controllers";
 import {authMiddleware, authorizeAdmin} from "../middlewares/Auth_Middleware";
-import { validateSchema, loginSchema,registerSchema } from "../middlewares/ValidateRequest_middleware";
+import { validateSchema, loginSchema,registerSchema, waitlistSchema } from "../middlewares/ValidateRequest_middleware";
 import { upload } from "../middlewares/Upload_middleware";
 import passport from "../utils/Passport_config";
 
@@ -24,6 +24,7 @@ router.post("/change-password", authMiddleware, changePassword);
 router.delete("/delete-account", authMiddleware, deleteAccount);
 router.get("/logout", logoutUser);
 router.get("/refresh-token", refreshAccessToken)
+router.post("/waitlist", validateSchema(waitlistSchema), joinWaitlist);
 
 //admin routes
 router.get("/users",authMiddleware, authorizeAdmin, getallUsers)

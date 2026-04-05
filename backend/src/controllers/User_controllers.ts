@@ -478,6 +478,36 @@ const deleteAccount = async (req: Request, res: Response) => {
   }
 };
 
+const joinWaitlist = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    // 1. Check if person is already a registered user
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ message: "You are already a registered user! Please log in." });
+    }
+
+    // 2. Check if already on waitlist
+    const onWaitlist = await prisma.waitlist.findUnique({ where: { email } });
+    if (onWaitlist) {
+      return res.status(400).json({ message: "You are already on our waitlist! We'll notify you soon." });
+    }
+
+    // 3. Add to waitlist
+    await prisma.waitlist.create({
+      data: { email }
+    });
+
+    res.status(201).json({ 
+      message: "Success! You've been added to the private beta waitlist." 
+    });
+  } catch (error) {
+    console.error("[WAITLIST] Join failed:", error);
+    res.status(500).json({ message: "Failed to join waitlist. Please try again later." });
+  }
+};
+
 export {
   registerUser,
   loginUser,
@@ -488,5 +518,6 @@ export {
   refreshAccessToken,
   changePassword,
   deleteAccount,
-  githubAuthCallback
+  githubAuthCallback,
+  joinWaitlist
 };

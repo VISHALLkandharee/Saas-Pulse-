@@ -1,10 +1,14 @@
 "use client"
 
+import React, { useState } from "react";
 import Link from "next/link";
 import { Activity, Shield, Zap, MoveRight } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/context/Auth_Context";
 
 export default function LandingPage() {
+  const { user } = useAuth();
+
   return (
     <div className="min-h-screen bg-[#050505] text-white selection:bg-emerald-500/30 overflow-hidden">
       {/* Navbar */}
@@ -60,25 +64,14 @@ export default function LandingPage() {
           Monitor revenue, user behavior, and system health with a single, high-performance pulse.
         </motion.p>
 
+        {/* Waitlist / Action Section */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+          className="max-w-xl mx-auto"
         >
-          <Link 
-            href="/dashboard" 
-            className="group bg-emerald-500 text-black px-8 py-4 rounded-full font-semibold flex items-center gap-2 hover:bg-emerald-400 transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-emerald-500/20"
-          >
-            Go to Dashboard
-            <MoveRight size={18} className="group-hover:translate-x-1 transition-transform" />
-          </Link>
-          <Link 
-            href="/dashboard/developers" 
-            className="text-zinc-400 hover:text-white px-8 py-4 font-medium transition-colors flex items-center gap-2"
-          >
-            View Documentation
-          </Link>
+          <WaitlistSection />
         </motion.div>
 
         {/* Feature Highlights */}
@@ -147,5 +140,97 @@ function TrendingUpIcon() {
       <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
       <polyline points="16 7 22 7 22 13" />
     </svg>
+  );
+}
+
+function WaitlistSection() {
+  const { user } = useAuth();
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
+  if (user) {
+    return (
+      <div className="flex justify-center mt-12">
+        <Link 
+          href="/dashboard" 
+          className="group bg-emerald-500 text-black px-10 py-5 rounded-full font-bold flex items-center gap-2 hover:bg-emerald-400 transition-all transform hover:scale-105 active:scale-95 shadow-2xl shadow-emerald-500/20"
+        >
+          Go to Dashboard
+          <MoveRight size={20} className="group-hover:translate-x-1 transition-transform" />
+        </Link>
+      </div>
+    );
+  }
+
+  const handleWaitlist = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setStatus(null);
+
+    try {
+      const response = await fetch('/api_server/auth/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setStatus({ type: 'success', message: data.message });
+        setEmail("");
+      } else {
+        setStatus({ type: 'error', message: data.message || "Failed to join waitlist" });
+      }
+    } catch (err) {
+      setStatus({ type: 'error', message: "Connection error. Try again later." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="mt-10">
+      <form onSubmit={handleWaitlist} className="flex flex-col sm:flex-row gap-3 items-center justify-center">
+        <div className="relative w-full sm:w-80 text-left">
+          <input 
+            type="email" 
+            placeholder="Enter your email to join the waitlist" 
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="w-full bg-zinc-900/80 border border-zinc-800 rounded-2xl py-4 px-6 focus:outline-none focus:border-emerald-500/50 transition-all text-sm backdrop-blur-sm"
+          />
+        </div>
+        <button 
+          type="submit"
+          disabled={loading}
+          className="w-full sm:w-auto bg-white text-black px-8 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-zinc-200 transition-all transform active:scale-95 disabled:opacity-50 whitespace-nowrap shadow-xl shadow-white/5"
+        >
+          {loading ? "Joining..." : "Get Early Access"}
+          {!loading && <MoveRight size={18} />}
+        </button>
+      </form>
+      
+      {status && (
+        <motion.p 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`text-sm mt-4 font-medium ${status.type === 'success' ? 'text-emerald-400' : 'text-rose-400'}`}
+        >
+          {status.message}
+        </motion.p>
+      )}
+
+      <div className="mt-8 flex items-center justify-center gap-8 text-zinc-500 text-sm font-medium">
+        <div className="flex items-center gap-2">
+          <Shield size={14} className="text-emerald-500/50" />
+          <span>Private Beta</span>
+        </div>
+        <div className="w-[1px] h-4 bg-zinc-800" />
+        <Link href="/login" className="hover:text-white transition-colors">Registered? Sign In</Link>
+      </div>
+    </div>
   );
 }
