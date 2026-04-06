@@ -14,7 +14,8 @@ import {
   Trash2,
   Zap,
   PartyPopper,
-  Shield
+  Shield,
+  Lock
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import RevenueChart from "@/components/dashboard/RevenueChart";
@@ -251,10 +252,40 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-12">
           { (stats?.hasIntegrated || activities.length > 0) ? (
             <>
-              <div className="lg:col-span-2 bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 min-h-[400px] flex flex-col">
-                <h3 className="text-lg font-semibold mb-6">Revenue Growth</h3>
-                <div className="flex-1 w-full min-h-[300px]">
-                  <RevenueChart data={stats?.revenueHistory || []} />
+              <div className="lg:col-span-2 bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 min-h-[400px] flex flex-col relative group">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    Revenue Growth
+                    {user?.subscription?.plan === "FREE" && (
+                      <span className="text-[10px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full border border-amber-500/20 font-bold uppercase tracking-tighter">Pro Feature</span>
+                    )}
+                  </h3>
+                </div>
+
+                <div className="flex-1 w-full min-h-[300px] relative">
+                  {/* The actual chart (Blurred if FREE and NOT ADMIN) */}
+                  <div className={`w-full h-full transition-all duration-700 ${user?.subscription?.plan === "FREE" && user?.Role !== "ADMIN" ? "blur-md pointer-events-none grayscale opacity-40" : ""}`}>
+                    <RevenueChart data={stats?.revenueHistory || []} />
+                  </div>
+
+                  {/* The Unlock Overlay (Only for FREE and NOT ADMIN) */}
+                  {user?.subscription?.plan === "FREE" && user?.Role !== "ADMIN" && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-zinc-950/20 backdrop-blur-[2px] rounded-xl">
+                      <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center mb-4 border border-white/20 shadow-2xl">
+                        <Lock className="text-white" size={20} />
+                      </div>
+                      <h4 className="text-xl font-bold text-white mb-2">Advanced Revenue Insights</h4>
+                      <p className="text-zinc-400 text-sm max-w-[280px] mb-6 leading-relaxed">
+                        Upgrade to PRO to unlock detailed growth analytics and 90-day retention history.
+                      </p>
+                      <button 
+                        onClick={() => router.push('/dashboard/billing')}
+                        className="bg-white text-black px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-95"
+                      >
+                        Unlock PRO Dashboard
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 

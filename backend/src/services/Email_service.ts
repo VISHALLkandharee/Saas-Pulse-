@@ -62,6 +62,54 @@ export class EmailService {
   }
 
   /**
+   * Sends a high-value sale alert to the founder.
+   */
+  static async sendHighValueAlert(to: string, amount: number, customer: string) {
+    if (!process.env.RESEND_API_KEY) return;
+    try {
+      await this.resend.emails.send({
+        from: "SaaS Pulse Alerts <alerts@resend.dev>",
+        to: [to],
+        subject: `💰 High-Value Pulse: $${amount} from ${customer}`,
+        html: `
+          <div style="font-family: sans-serif; background-color: #f9fafb; padding: 40px;">
+            <div style="max-width: 500px; margin: auto; background: white; padding: 32px; border-radius: 16px; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+              <h2 style="color: #111827; margin-bottom: 8px;">Cha-ching! 💰</h2>
+              <p style="color: #6b7280; font-size: 16px; margin-bottom: 24px;">A significant event was just recorded on your Pulse network.</p>
+              <div style="background-color: #f0fdf4; padding: 16px; border-radius: 8px; border: 1px solid #bbf7d0; margin-bottom: 24px;">
+                <p style="margin: 0; color: #166534; font-size: 14px; font-weight: 600;">Event Detail</p>
+                <p style="margin: 4px 0 0; color: #14532d; font-size: 18px; font-weight: bold;">$${amount} Sale - ${customer}</p>
+              </div>
+              <a href="${process.env.CLIENT_URL}/dashboard" style="display: block; text-align: center; background-color: #111827; color: white; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: 600;">View Dashboard</a>
+            </div>
+          </div>
+        `
+      });
+    } catch (err) { console.error("[EMAIL] HighValueAlert failed:", err); }
+  }
+
+  /**
+   * Sends a general activity alert for critical system events.
+   */
+  static async sendActivityAlert(to: string, event: string, metadata: any) {
+    if (!process.env.RESEND_API_KEY) return;
+    try {
+      await this.resend.emails.send({
+        from: "SaaS Pulse Alerts <alerts@resend.dev>",
+        to: [to],
+        subject: `⚠️ SaaS Pulse Alert: ${event}`,
+        html: `
+          <div style="font-family: sans-serif; padding: 40px;">
+            <h2 style="color: #ef4444;">System Alert</h2>
+            <p><strong>Event:</strong> ${event}</p>
+            <pre style="background: #f4f4f4; padding: 16px; border-radius: 8px;">${JSON.stringify(metadata, null, 2)}</pre>
+          </div>
+        `
+      });
+    } catch (err) { console.error("[EMAIL] ActivityAlert failed:", err); }
+  }
+
+  /**
    * Simulates sending a welcome email to a new user.
    */
   static async sendWelcomeEmail(to: string, name: string) {
