@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { exportSystemData } from "../controllers/Admin_controllers";
+import { exportSystemData, getWaitlist, grantWaitlistAccess } from "../controllers/Admin_controllers";
 import { authMiddleware, authorizeAdmin } from "../middlewares/Auth_Middleware";
 
 const router = Router();
@@ -9,5 +9,7 @@ router.use(authMiddleware);
 router.use(authorizeAdmin);
 
 router.get("/export", exportSystemData);
+router.get("/waitlist", getWaitlist);
+router.post("/waitlist/invite", grantWaitlistAccess);
 
 export default router;

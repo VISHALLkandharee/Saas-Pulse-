@@ -55,6 +55,7 @@ model Activity {
 model Waitlist {
   id        String   @id @default(uuid())
   email     String   @unique
+  status    String   @default("PENDING") // PENDING or INVITED
   createdAt DateTime @default(now())
 }
 

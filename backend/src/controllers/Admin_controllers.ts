@@ -1,7 +1,49 @@
 import { Request, Response } from "express";
 import prisma from "../utils/prisma";
+import { EmailService } from "../services/Email_service";
+
+export const getWaitlist = async (req: Request, res: Response) => {
+  try {
+    const waitlist = await prisma.waitlist.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    
+    res.status(200).json({ success: true, waitlist });
+  } catch (error) {
+    console.error("[ADMIN WAITLIST] Fetch failed:", error);
+    res.status(500).json({ message: "Failed to fetch waitlist" });
+  }
+};
+
+export const grantWaitlistAccess = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    // 1. Mark as INVITED in the database
+    await prisma.waitlist.update({
+      where: { email },
+      data: { status: "INVITED" }
+    });
+
+    // 2. Trigger the real Resend invitation
+    await EmailService.sendInviteEmail(email);
+
+    res.status(200).json({ 
+      success: true, 
+      message: `Access granted! Invitation sent to ${email}` 
+    });
+  } catch (error) {
+    console.error("[ADMIN WAITLIST] Grant failed:", error);
+    res.status(500).json({ message: "Failed to grant early access" });
+  }
+};
 
 export const exportSystemData = async (req: Request, res: Response) => {
+// ... existing export code ...
   try {
     // Only ADMINs can reach this due to middleware, but we double check context
     const userRole = (req as any).user?.role;

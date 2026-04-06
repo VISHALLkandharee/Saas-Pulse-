@@ -33,15 +33,25 @@ interface User {
   };
 }
 
+interface WaitlistEntry {
+  id: string;
+  email: string;
+  status: string;
+  createdAt: string;
+}
+
 export default function UsersManagementPage() {
   const [users, setUsers] = useState<User[]>([]);
+  const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedWaitlistEmail, setSelectedWaitlistEmail] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newPlan, setNewPlan] = useState("FREE");
   const [newMrr, setNewMrr] = useState<string | number>(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGranting, setIsGranting] = useState(false);
   const router = useRouter();
 
   const fetchUsers = async () => {
@@ -56,8 +66,19 @@ export default function UsersManagementPage() {
     }
   };
 
+  const fetchWaitlist = async () => {
+    try {
+      const response = await api.get("/admin/waitlist");
+      // Only show PENDING entries in the dropdown
+      setWaitlist(response.data.waitlist.filter((w: WaitlistEntry) => w.status === "PENDING"));
+    } catch (error) {
+      console.error("Failed to fetch waitlist", error);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
+    fetchWaitlist();
   }, []);
 
   const handleUpdateClick = (user: User) => {
@@ -85,6 +106,22 @@ export default function UsersManagementPage() {
       alert("Failed to update subscription. Please try again.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleGrantAccess = async () => {
+    if (!selectedWaitlistEmail) return;
+    setIsGranting(true);
+    try {
+      await api.post("/admin/waitlist/invite", { email: selectedWaitlistEmail });
+      alert(`Early Access granted to ${selectedWaitlistEmail}!`);
+      setSelectedWaitlistEmail("");
+      fetchWaitlist(); // Refresh waitlist
+    } catch (error) {
+      console.error("Failed to grant access", error);
+      alert("Failed to grant early access. Please try again.");
+    } finally {
+      setIsGranting(false);
     }
   };
 
@@ -117,21 +154,48 @@ export default function UsersManagementPage() {
           </div>
         </div>
 
-        {/* Search & Filters */}
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-zinc-900/30 p-4 rounded-xl border border-zinc-800 backdrop-blur-sm">
-          <div className="relative w-full md:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
-            <input 
-              type="text" 
-              placeholder="Search by name or email..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-zinc-950/50 border border-zinc-800 rounded-lg py-2 pl-10 pr-4 focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-all text-sm placeholder:text-zinc-700"
-            />
+        {/* Search & Filters & Waitlist */}
+        <div className="flex flex-col xl:flex-row gap-6">
+          <div className="flex-1 flex flex-col md:flex-row gap-4 items-center justify-between bg-zinc-900/30 p-4 rounded-xl border border-zinc-800 backdrop-blur-sm">
+            <div className="relative w-full md:w-96">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+              <input 
+                type="text" 
+                placeholder="Search by name or email..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-zinc-950/50 border border-zinc-800 rounded-lg py-2 pl-10 pr-4 focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-all text-sm placeholder:text-zinc-700"
+              />
+            </div>
+            <div className="flex items-center gap-2 text-sm text-zinc-500">
+              <Zap size={14} className="text-amber-500" />
+              <span>{users.length} Total Registered Users</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-sm text-zinc-500">
-            <Zap size={14} className="text-amber-500" />
-            <span>{users.length} Total Registered Users</span>
+
+          {/* Waitlist Management Quick-Section */}
+          <div className="w-full xl:w-[400px] flex gap-3 items-center bg-emerald-500/5 p-4 rounded-xl border border-emerald-500/20 shadow-lg shadow-emerald-500/5">
+            <div className="flex-1">
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-emerald-500/70 mb-1.5 ml-1">Early Access Request</label>
+              <select 
+                value={selectedWaitlistEmail}
+                onChange={(e) => setSelectedWaitlistEmail(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-emerald-500/50 appearance-none cursor-pointer text-zinc-300"
+              >
+                <option value="">{waitlist.length > 0 ? `Select Guest (${waitlist.length} waiting)` : "No pending requests"}</option>
+                {waitlist.map(w => (
+                  <option key={w.id} value={w.email}>{w.email}</option>
+                ))}
+              </select>
+            </div>
+            <button 
+              onClick={handleGrantAccess}
+              disabled={!selectedWaitlistEmail || isGranting}
+              className="mt-5 bg-white text-black px-4 py-2 rounded-lg text-xs font-bold hover:bg-emerald-50 transition-all active:scale-95 disabled:opacity-30 disabled:grayscale flex items-center gap-2 whitespace-nowrap shadow-xl shadow-white/5"
+            >
+              {isGranting ? <Loader2 className="animate-spin" size={14} /> : "Grant VIP"}
+              {!isGranting && <Shield size={14} />}
+            </button>
           </div>
         </div>
 

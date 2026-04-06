@@ -35,6 +35,10 @@ const registerUser = async (req: Request, res: Response) => {
 
     const hashedPassword = await hashPassword(password);
 
+    // 🚀 VIP Check: If user was invited via waitlist, they get PRO for free + isBeta tag
+    const waitlistEntry = await prisma.waitlist.findUnique({ where: { email } });
+    const isInvited = waitlistEntry?.status === "INVITED";
+
     const user = await prisma.user.create({
       data: {
         name,
@@ -42,11 +46,12 @@ const registerUser = async (req: Request, res: Response) => {
         password: hashedPassword,
         Role: role,
         image: imagePath,
+        isBeta: isInvited, // Auto-tag if invited
         subscription: {
           create: {
-            plan: "FREE",
+            plan: isInvited ? "PRO" : "FREE",
             status: "ACTIVE",
-            mrr: 0.0,
+            mrr: 0.0, // Beta users get PRO for $0
           }
         }
       },
@@ -59,6 +64,11 @@ const registerUser = async (req: Request, res: Response) => {
         createdAt: true,
       },
     });
+
+    // Cleanup waitlist after registration
+    if (waitlistEntry) {
+      await prisma.waitlist.delete({ where: { email } }).catch(() => {});
+    }
 
     // Log signup activity (Non-blocking)
     prisma.activity.create({
