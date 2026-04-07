@@ -33,7 +33,10 @@ export const ingestEvent = async (req: Request, res: Response) => {
       const count = await prisma.activity.count({
         where: {
           userId,
-          createdAt: { gte: startOfMonth }
+          createdAt: { gte: startOfMonth },
+          NOT: {
+            event: { in: ["USER_SIGNUP", "USER_LOGIN", "PLAN_UPGRADE"] }
+          }
         }
       });
 

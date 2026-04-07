@@ -131,9 +131,15 @@ export class MetricsService {
     const retentionDate = await MetricsService.getRetentionDate(userId, role);
     const subscription = await prisma.subscription.findUnique({ where: { userId } });
 
-    // 1. SaaS Pulse Usage
+    // 1. SaaS Pulse Usage (Exclude internal system events)
     const usageCount = await prisma.activity.count({
-      where: { userId, createdAt: { gte: startOfCurrentMonth } }
+      where: { 
+        userId, 
+        createdAt: { gte: startOfCurrentMonth },
+        NOT: {
+          event: { in: ["USER_SIGNUP", "USER_LOGIN", "PLAN_UPGRADE"] }
+        }
+      }
     });
 
     const plan = (subscription as any)?.plan || "FREE";
