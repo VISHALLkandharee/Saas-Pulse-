@@ -209,10 +209,10 @@ export default function DevelopersPage() {
                   <span className="text-zinc-600">POST /api/v1/event</span>
                   <Terminal size={12} className="text-zinc-700" />
                 </div>
-                <div className="text-emerald-500/70">{`fetch('https://saas-pulse.com/api/v1/event', {`}</div>
+                <div className="text-emerald-500/70">{`fetch('${(process.env.NEXT_PUBLIC_RAILWAY_URL || 'https://saas-pulse-production.up.railway.app')}/api/v1/event', {`}</div>
                 <div className="pl-4 text-zinc-400">{`method: 'POST',`}</div>
                 <div className="pl-4 text-zinc-400">{`headers: {`}</div>
-                <div className="pl-8 text-emerald-400">{`'x-api-key': 'YOUR_SP_KEY',`}</div>
+                <div className="pl-8 text-emerald-400">{`'x-api-key': '${keys[0]?.key || 'YOUR_SP_KEY'}',`}</div>
                 <div className="pl-8 text-zinc-400">{`'Content-Type': 'application/json'`}</div>
                 <div className="pl-4 text-zinc-400">{`},`}</div>
                 <div className="pl-4 text-zinc-400">{`body: JSON.stringify({`}</div>

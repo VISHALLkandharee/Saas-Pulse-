@@ -398,7 +398,7 @@ function OnboardingCard({ apiKey }: { apiKey?: string | null }) {
   });
 
   const displayKey = apiKey || 'generate_to_see_key...';
-  const curlExample = `curl -X POST http://localhost:8000/api/v1/event -H "Content-Type: application/json" -H "x-api-key: ${apiKey || 'YOUR_API_KEY'}" -d '{"event": "NEW_SALE", "metadata": {"mrr": 49}}'`;
+  const curlExample = `curl -X POST ${(process.env.NEXT_PUBLIC_RAILWAY_URL || 'http://localhost:8000')}/api/v1/event -H "Content-Type: application/json" -H "x-api-key: ${apiKey || 'YOUR_API_KEY'}" -d '{"event": "NEW_SALE", "metadata": {"mrr": 49}}'`;
   
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-zinc-900/50 border border-emerald-500/10 rounded-3xl p-8 md:p-12 relative overflow-hidden">

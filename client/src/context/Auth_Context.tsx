@@ -49,12 +49,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: unknown) {
       const axiosError = error as { response?: { status: number } };
       setUser(null);
-      // If the profile check fails with 401, we might be in an inconsistent state or the cookie is missing/invalid
+      // 🛑 Critical Fix: If the token is invalid (401), we MUST clear the session 
+      // otherwise Next.js Middleware will trap the user in an infinite redirect loop.
       if (axiosError.response?.status === 401) {
-        // Only redirect if we ARE NOT on login or register already
-        const path = window.location.pathname;
-        if (path !== "/login" && path !== "/register" && path !== "/") {
-          router.push("/login");
+        console.warn("[AUTH] Stale session detected. Breaking the loop...");
+        
+        // Use a full page reload to /login to ensure all cookies and memory are cleared
+        if (typeof window !== "undefined") {
+          const path = window.location.pathname;
+          if (path !== "/login" && path !== "/register" && path !== "/") {
+            // We only need to clear the session once.
+            // By letting the loop break here, the user can finally land on /register
+            setUser(null);
+            router.replace("/login"); 
+          }
         }
       }
     } finally {

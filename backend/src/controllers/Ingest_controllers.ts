@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../utils/prisma";
 import { getIO } from "../utils/socket";
 import { invalidateCache } from "../utils/redis";
+import redisClient from "../utils/redis";
 
 export const ingestEvent = async (req: Request, res: Response) => {
   try {
@@ -17,30 +18,42 @@ export const ingestEvent = async (req: Request, res: Response) => {
       return res.status(500).json({ success: false, message: "Integration context lost" });
     }
 
-    // Tier Enforcement: Check monthly pulse limits
-    const sub = await prisma.subscription.findUnique({ where: { userId } });
-    const plan = sub?.plan || "FREE";
+    // Tier Enforcement: Check monthly pulse limits (Plan provided by verifyApiKey middleware)
+    const plan = (req as any).integrationUser?.plan || "FREE";
     
     // Monthly pulse limits
     const limits = { FREE: 1000, PRO: 50000, ENTERPRISE: Infinity };
     const limit = limits[plan as keyof typeof limits];
 
     if (limit !== Infinity) {
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
+      const now = new Date();
+      const monthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
+      const usageKey = `usage:count:${userId}:${monthKey}`;
 
-      const count = await prisma.activity.count({
-        where: {
-          userId,
-          createdAt: { gte: startOfMonth },
-          NOT: {
-            event: { in: ["USER_SIGNUP", "USER_LOGIN", "PLAN_UPGRADE"] }
+      // 1. Get current count from Redis
+      let currentUsage = await redisClient.get(usageKey);
+
+      if (currentUsage === null) {
+        // 2. Cache Miss: Warm up from Database
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const dbCount = await prisma.activity.count({
+          where: {
+            userId,
+            createdAt: { gte: startOfMonth },
+            NOT: {
+              event: { in: ["USER_SIGNUP", "USER_LOGIN", "PLAN_UPGRADE"] }
+            }
           }
-        }
-      });
+        });
+        
+        await redisClient.setEx(usageKey, 2592000, String(dbCount)); // 30 days
+        currentUsage = String(dbCount);
+      }
 
-      if (count >= limit) {
+      // 3. Atomically increment and check
+      const newUsage = await redisClient.incr(usageKey);
+
+      if (newUsage > limit) {
         return res.status(402).json({ 
           success: false, 
           message: `Pulse limit reached for ${plan} plan. Please upgrade to continue ingesting data.`,

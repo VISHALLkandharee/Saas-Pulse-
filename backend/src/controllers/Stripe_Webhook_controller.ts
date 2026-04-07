@@ -80,6 +80,7 @@ export const stripeWebhook = async (req: Request, res: Response) => {
         // Final Step: Invalidate cache so dashboard shows fresh PRO data instantly
         const { invalidateCache } = require("../utils/redis");
         await invalidateCache(`user-stats:${userId}`);
+        await invalidateCache(`user-plan:${userId}`); // 🚀 GO PRO IMMEDIATELY
         await invalidateCache("admin-stats:overall");
         
       } catch (dbError) {
@@ -128,6 +129,7 @@ export const stripeWebhook = async (req: Request, res: Response) => {
         const { invalidateCache } = require("../utils/redis");
         for (const sub of affectedSubscriptions) {
           await invalidateCache(`user-stats:${sub.userId}`);
+          await invalidateCache(`user-plan:${sub.userId}`); // Sync plans
         }
         await invalidateCache("admin-stats:overall");
 

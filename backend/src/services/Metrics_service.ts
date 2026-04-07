@@ -1,4 +1,5 @@
 import prisma from "../utils/prisma";
+import redisClient from "../utils/redis";
 import { getCache, setCache } from "../utils/redis";
 
 
@@ -131,16 +132,28 @@ export class MetricsService {
     const retentionDate = await MetricsService.getRetentionDate(userId, role);
     const subscription = await prisma.subscription.findUnique({ where: { userId } });
 
-    // 1. SaaS Pulse Usage (Exclude internal system events)
-    const usageCount = await prisma.activity.count({
-      where: { 
-        userId, 
-        createdAt: { gte: startOfCurrentMonth },
-        NOT: {
-          event: { in: ["USER_SIGNUP", "USER_LOGIN", "PLAN_UPGRADE"] }
+    // 1. SaaS Pulse Usage (Optimized Redis-first lookup)
+    const monthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
+    const usageKey = `usage:count:${userId}:${monthKey}`;
+    let usageCountStr = await redisClient.get(usageKey);
+    let usageCount: number;
+
+    if (usageCountStr !== null) {
+      usageCount = parseInt(usageCountStr);
+    } else {
+      // Fallback: Query Database and perform "Late Warming"
+      usageCount = await prisma.activity.count({
+        where: { 
+          userId, 
+          createdAt: { gte: startOfCurrentMonth },
+          NOT: {
+            event: { in: ["USER_SIGNUP", "USER_LOGIN", "PLAN_UPGRADE"] }
+          }
         }
-      }
-    });
+      });
+      // Warm the cache for future requests
+      await redisClient.setEx(usageKey, 2592000, String(usageCount));
+    }
 
     const plan = (subscription as any)?.plan || "FREE";
     const limits: Record<string, number> = { FREE: 1000, PRO: 50000, ENTERPRISE: 999999999 };

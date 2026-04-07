@@ -51,7 +51,8 @@ export const updateSubscription = async (req: Request, res: Response) => {
       // Invalidate ALL metrics caches (Stats, Aggregates, and Admin totals)
       console.log(`[ADMIN] Nuking stale metrics caches for user ${userId}...`);
       await invalidateCache(`user-stats:${userId}`);
-      await invalidateCache(`user-dashboard-stats:${userId}`); // The hidden "Dashboard" cache
+      await invalidateCache(`user-dashboard-stats:${userId}`); 
+      await invalidateCache(`user-plan:${userId}`); // 🏁 NEW: Unlock the ingestion engine instantly
       await invalidateCache(`admin-stats:overall`);
       
       console.log(`[ADMIN] Manual synchronization completed for user ${userId}`);

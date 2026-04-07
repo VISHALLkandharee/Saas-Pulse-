@@ -12,9 +12,9 @@ export const ingestRateLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: (req: Request) => {
     const plan = (req as any).integrationUser?.plan || "FREE";
-    if (plan === "PRO") return 100;
-    if (plan === "ENTERPRISE") return 1000;
-    return 10; // Default: FREE
+    if (plan === "PRO") return 300; // 5 pulses per second
+    if (plan === "ENTERPRISE") return 3000; // 50 pulses per second
+    return 60; // Default: 1 pulse per second for FREE
   },
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers

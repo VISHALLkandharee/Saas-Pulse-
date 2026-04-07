@@ -6,9 +6,15 @@ import api from "@/lib/api";
 import Link from "next/link";
 import { Activity, Lock, Mail, User, MoveRight, ShieldCheck, Image as ImageIcon } from "lucide-react";
 import { motion } from "framer-motion";
+import { useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 import { useAuth } from "@/context/Auth_Context";
 
 export default function RegisterPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const invitationEmail = searchParams.get("email");
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,8 +24,14 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [showAdminField, setShowAdminField] = useState(false);
   
-  const router = useRouter();
   const { login: setAuthUser } = useAuth();
+
+  // 🕊️ VIP Pre-fill: If they came from an invite link, fill their email automatically
+  useEffect(() => {
+    if (invitationEmail) {
+      setEmail(decodeURIComponent(invitationEmail));
+    }
+  }, [invitationEmail]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();

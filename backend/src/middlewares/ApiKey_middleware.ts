@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import prisma from "../utils/prisma";
+import { getCache, setCache } from "../utils/redis";
+import redisClient from "../utils/redis";
 
 export const verifyApiKey = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -9,31 +11,57 @@ export const verifyApiKey = async (req: Request, res: Response, next: NextFuncti
       return res.status(401).json({ success: false, message: "Missing API Key" });
     }
 
-    const apiKey = await prisma.apiKey.findUnique({
-      where: { key: apiKeyHeader },
-    });
+    // 1. Check Redis for API Key (Auth)
+    const authCacheKey = `auth:key:${apiKeyHeader}`;
+    let authData = await getCache(authCacheKey);
 
-    if (!apiKey) {
-      return res.status(401).json({ success: false, message: "Invalid API Key" });
+    if (!authData) {
+      const apiKey = await prisma.apiKey.findUnique({
+        where: { key: apiKeyHeader },
+      });
+
+      if (!apiKey) {
+        return res.status(401).json({ success: false, message: "Invalid API Key" });
+      }
+
+      authData = { userId: apiKey.userId, keyId: apiKey.id };
+      await setCache(authCacheKey, authData, 3600);
     }
 
-    // Update last used timestamp (optional precision feature)
-    await prisma.apiKey.update({
-      where: { id: apiKey.id },
-      data: { lastUsed: new Date() },
-    });
+    // 2. Check Redis for Subscription Plan (Tier)
+    const planCacheKey = `user-plan:${authData.userId}`;
+    let plan = await redisClient.get(planCacheKey);
 
-    // Attach the owner's userId and plan to the request so downstream middlewares 
-    // (like the rate limiter or pulse controller) know the context.
-    const sub = await prisma.subscription.findUnique({
-      where: { userId: apiKey.userId },
-      select: { plan: true }
-    });
+    if (!plan) {
+      const sub = await prisma.subscription.findUnique({
+        where: { userId: authData.userId },
+        select: { plan: true }
+      });
+      plan = sub?.plan || "FREE";
+      await redisClient.setEx(planCacheKey, 3600, plan);
+    }
 
+    // 3. Performance: Throttled 'lastUsed' update (Once every 5 mins)
+    const throttleKey = `auth:lastused:${authData.keyId}`;
+    const isThrottled = await redisClient.get(throttleKey);
+    
+    if (!isThrottled) {
+      // Background update (don't await)
+      prisma.apiKey.update({
+        where: { id: authData.keyId },
+        data: { lastUsed: new Date() }
+      }).catch(() => {});
+      
+      // Set throttle flag for 5 minutes
+      await redisClient.setEx(throttleKey, 300, "1");
+    }
+
+    // 5. Attach context for downstream logic (Rate limiter & Usage counters)
     (req as any).integrationUser = { 
-      userId: apiKey.userId,
-      plan: sub?.plan || "FREE"
+      userId: authData.userId,
+      plan: plan // Use the correctly cached plan from Step 2
     };
+    
     next();
   } catch (error) {
     console.error("API Key Verification Failed:", error);
