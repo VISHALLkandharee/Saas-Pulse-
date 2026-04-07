@@ -209,17 +209,45 @@ export default function DevelopersPage() {
                   <span className="text-zinc-600">POST /api/v1/event</span>
                   <Terminal size={12} className="text-zinc-700" />
                 </div>
-                <div className="text-emerald-500/70">{`fetch('${(process.env.NEXT_PUBLIC_RAILWAY_URL || 'https://saas-pulse-production.up.railway.app')}/api/v1/event', {`}</div>
-                <div className="pl-4 text-zinc-400">{`method: 'POST',`}</div>
-                <div className="pl-4 text-zinc-400">{`headers: {`}</div>
-                <div className="pl-8 text-emerald-400">{`'x-api-key': '${keys[0]?.key || 'YOUR_SP_KEY'}',`}</div>
-                <div className="pl-8 text-zinc-400">{`'Content-Type': 'application/json'`}</div>
-                <div className="pl-4 text-zinc-400">{`},`}</div>
-                <div className="pl-4 text-zinc-400">{`body: JSON.stringify({`}</div>
-                <div className="pl-8 text-amber-400">{`event: 'USER_SIGNUP',`}</div>
-                <div className="pl-8 text-zinc-400">{`metadata: { plan: 'PRO' }`}</div>
-                <div className="pl-4 text-zinc-400">{`})`}</div>
-                <div className="text-emerald-500/70">{`});`}</div>
+                {/* The actual fetch snippet code */}
+                <div className="relative group">
+                  <button 
+                    onClick={() => {
+                      const code = `fetch('${(process.env.NEXT_PUBLIC_RAILWAY_URL || 'https://saas-pulse-production.up.railway.app')}/api/v1/event', {
+  method: 'POST',
+  headers: {
+    'x-api-key': '${keys[0]?.key || 'YOUR_SP_KEY'}',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    event: 'USER_SIGNUP',
+    metadata: { plan: 'PRO' }
+  })
+});`;
+                      navigator.clipboard.writeText(code);
+                      const btn = document.getElementById('copy-setup-btn');
+                      if (btn) {
+                        btn.innerText = 'Copied!';
+                        setTimeout(() => btn.innerText = 'Copy', 2000);
+                      }
+                    }}
+                    id="copy-setup-btn"
+                    className="absolute top-0 right-0 py-1 px-3 bg-zinc-800 text-[10px] text-zinc-400 rounded-lg border border-zinc-700 opacity-0 group-hover:opacity-100 transition-all hover:bg-zinc-700 hover:text-white"
+                  >
+                    Copy
+                  </button>
+                  <div className="text-emerald-500/70">{`fetch('${(process.env.NEXT_PUBLIC_RAILWAY_URL || 'https://saas-pulse-production.up.railway.app')}/api/v1/event', {`}</div>
+                  <div className="pl-4 text-zinc-400">{`method: 'POST',`}</div>
+                  <div className="pl-4 text-zinc-400">{`headers: {`}</div>
+                  <div className="pl-8 text-emerald-400">{`'x-api-key': '${keys[0]?.key || 'YOUR_SP_KEY'}',`}</div>
+                  <div className="pl-8 text-zinc-400">{`'Content-Type': 'application/json'`}</div>
+                  <div className="pl-4 text-zinc-400">{`},`}</div>
+                  <div className="pl-4 text-zinc-400">{`body: JSON.stringify({`}</div>
+                  <div className="pl-8 text-amber-400">{`event: 'USER_SIGNUP',`}</div>
+                  <div className="pl-8 text-zinc-400">{`metadata: { plan: 'PRO' }`}</div>
+                  <div className="pl-4 text-zinc-400">{`})`}</div>
+                  <div className="text-emerald-500/70">{`});`}</div>
+                </div>
               </div>
 
               <div className="pt-4 border-t border-zinc-800 mt-4 flex items-start gap-3">
