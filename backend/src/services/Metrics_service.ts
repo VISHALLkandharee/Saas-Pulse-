@@ -172,17 +172,20 @@ export class MetricsService {
     let cancelledCount = 0;
 
     pulses.forEach((p: any) => {
-      if (["USER_LOGIN", "USER_SIGNUP", "PLAN_UPGRADE"].includes(p.event)) return;
+      // Exclude internal system events of the founder themselves
+      if (["USER_LOGIN", "USER_SIGNUP"].includes(p.event)) return;
 
       const meta = p.metadata || {};
       const val = meta.mrr || meta.amount || meta.value || 0;
       const amount = typeof val === 'number' ? val : (parseFloat(val) || 0);
-      const custId = meta.customerId || meta.userId || meta.email;
+      
+      // Identify the customer (Priority: customer > customerId > email > userId)
+      const custId = meta.customer || meta.customerId || meta.email || meta.userId;
 
       if (p.createdAt >= startOfCurrentMonth) {
         currentMonthMrr += amount;
         if (custId) currentCustomerIds.add(String(custId));
-        if (p.event === "SUBSCRIPTION_CANCELLED") cancelledCount++;
+        if (p.event === "SUBSCRIPTION_CANCELLED" || p.event === "CHURN") cancelledCount++;
       } else if (p.createdAt >= startOfPrevMonth && p.createdAt < startOfCurrentMonth) {
         prevMonthMrr += amount;
         if (custId) prevCustomerIds.add(String(custId));

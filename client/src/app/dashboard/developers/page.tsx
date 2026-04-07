@@ -258,6 +258,75 @@ export default function DevelopersPage() {
               </div>
             </div>
 
+            <div className="p-8 bg-zinc-950 border border-zinc-900 rounded-[2.5rem] relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-[80px] -mr-32 -mt-32 rounded-full" />
+              
+              <div className="relative">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="bg-amber-500/10 p-2 rounded-xl text-amber-500">
+                    <ShieldAlert size={20} />
+                  </div>
+                  <h3 className="text-xl font-bold">Metadata Dictionary</h3>
+                </div>
+
+                <p className="text-sm text-zinc-500 mb-8 max-w-lg leading-relaxed">
+                  Your dashboard automatically calculates growth based on specific keys in your <code className="text-zinc-300">metadata</code> object.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Revenue Tracking */}
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                       Revenue Tracking
+                    </h4>
+                    <ul className="space-y-3">
+                      <li className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
+                        <code className="text-emerald-400 text-xs">mrr</code>
+                        <span className="text-[10px] text-zinc-500">Monthly Recurring Revenue</span>
+                      </li>
+                      <li className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
+                        <code className="text-emerald-400 text-xs">amount</code>
+                        <span className="text-[10px] text-zinc-500">Transaction Value</span>
+                      </li>
+                      <li className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
+                        <code className="text-emerald-400 text-xs">value</code>
+                        <span className="text-[10px] text-zinc-500">General Numeric Worth</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  {/* Identity Tracking */}
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                       <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                       Identity Tracking
+                    </h4>
+                    <ul className="space-y-3">
+                      <li className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
+                        <code className="text-indigo-400 text-xs">customer</code>
+                        <span className="text-[10px] text-zinc-500">Full Name or Alias</span>
+                      </li>
+                      <li className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
+                        <code className="text-indigo-400 text-xs">customerId</code>
+                        <span className="text-[10px] text-zinc-500">Unique Database ID</span>
+                      </li>
+                      <li className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
+                        <code className="text-indigo-400 text-xs">email</code>
+                        <span className="text-[10px] text-zinc-500">Direct Contact Address</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="mt-8 p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
+                  <p className="text-[11px] text-zinc-400 leading-relaxed italic">
+                    💡 <span className="text-emerald-500 font-bold">Pro Tip:</span> Always send at least one <strong>Identity key</strong> with every pulse. This ensures your "Active Customers" count stays perfectly accurate even if your users are making thousands of requests.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="p-6 bg-gradient-to-br from-indigo-500/10 to-transparent border border-indigo-500/20 rounded-3xl space-y-2">
               <h4 className="text-sm font-bold text-zinc-200 flex items-center gap-2">
                 <Key size={14} className="text-indigo-400" />
