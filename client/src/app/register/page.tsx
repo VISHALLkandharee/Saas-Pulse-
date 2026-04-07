@@ -7,10 +7,10 @@ import Link from "next/link";
 import { Activity, Lock, Mail, User, MoveRight, ShieldCheck, Image as ImageIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { useAuth } from "@/context/Auth_Context";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const invitationEmail = searchParams.get("email");
@@ -26,7 +26,6 @@ export default function RegisterPage() {
   
   const { login: setAuthUser } = useAuth();
 
-  // 🕊️ VIP Pre-fill: If they came from an invite link, fill their email automatically
   useEffect(() => {
     if (invitationEmail) {
       setEmail(decodeURIComponent(invitationEmail));
@@ -138,11 +137,6 @@ export default function RegisterPage() {
                 onChange={(e) => setImageFile(e.target.files?.[0] || null)}
                 className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl py-4 pl-12 pr-4 focus:outline-none focus:border-emerald-500/50 transition-colors file:hidden cursor-pointer"
               />
-              {!imageFile && (
-                <span className="absolute left-12 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none">
-                
-                </span>
-              )}
               {imageFile && (
                 <span className="absolute left-12 top-1/2 -translate-y-1/2 text-emerald-500 font-medium pointer-events-none">
                   {imageFile.name}
@@ -196,5 +190,17 @@ export default function RegisterPage() {
         </p>
       </motion.div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+        <Activity className="text-emerald-500 animate-pulse" size={48} />
+      </div>
+    }>
+      <RegisterForm />
+    </Suspense>
   );
 }
