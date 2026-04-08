@@ -64,6 +64,8 @@ passport.use(
             await prisma.waitlist.delete({ where: { email } }).catch(() => {});
           }
           
+          user.isNewVip = isInvited; // Temporarily flag for the callback redirect
+          
           // Log signup activity
           await prisma.activity.create({
             data: {

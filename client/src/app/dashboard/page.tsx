@@ -21,7 +21,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import RevenueChart from "@/components/dashboard/RevenueChart";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/Auth_Context";
 
@@ -83,9 +83,17 @@ function CopyButton({ text }: { text: string }) {
 export default function DashboardPage() {
   const { user, logout: authLogout, checkAuth } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [activeToast, setActiveToast] = useState<ActivityItem | null>(null);
   const [filterOwnOnly, setFilterOwnOnly] = useState(false);
+  const [showVipModal, setShowVipModal] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("new_vip") === "true") {
+      setShowVipModal(true);
+    }
+  }, [searchParams]);
 
   // Use React Query for Stats
   const { data: stats, isLoading: statsLoading, isFetching: statsFetching } = useQuery<DashboardStats>({
@@ -192,6 +200,37 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#050505] text-white p-8 font-[family-name:var(--font-geist-sans)]">
       <div className="max-w-7xl mx-auto space-y-8">
+        
+        {/* VIP Success Modal */}
+        <AnimatePresence>
+          {showVipModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="bg-zinc-900 border border-emerald-500/30 p-8 rounded-[2.5rem] max-w-md w-full text-center space-y-6 shadow-[0_0_50px_rgba(16,185,129,0.1)]"
+              >
+                <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20">
+                  <PartyPopper className="text-emerald-500" size={40} />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-black text-white tracking-tighter">VIP Access Granted!</h2>
+                  <p className="text-zinc-400 font-medium">Welcome to the inner circle! Your early access invite includes an automatic, lifetime upgrade to the PRO tier.</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    setShowVipModal(false);
+                    router.replace("/dashboard");
+                  }}
+                  className="w-full py-4 bg-emerald-500 text-black font-black rounded-2xl hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/20 uppercase tracking-widest text-sm"
+                >
+                  Enter the Pulse
+                </button>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div className="space-y-4 w-full md:w-auto">
             <div>

@@ -459,7 +459,11 @@ const githubAuthCallback = async (req: Request, res: Response) => {
     res.cookie("refreshToken", refreshToken, refreshTokenOptions);
 
     // Redirect to dashboard on success
-    res.redirect(`${process.env.CLIENT_URL}/dashboard`);
+    if (user.isNewVip) {
+      res.redirect(`${process.env.CLIENT_URL}/dashboard?new_vip=true`);
+    } else {
+      res.redirect(`${process.env.CLIENT_URL}/dashboard`);
+    }
   } catch (error) {
     console.error("GitHub Auth Callback Error:", error);
     res.redirect(`${process.env.CLIENT_URL}/login?error=server_error`);

@@ -52,7 +52,13 @@ function RegisterForm() {
       });
       
       setAuthUser(response.data.user);
-      router.push("/dashboard");
+      
+      if (response.data.user?.isBeta) {
+        router.push("/dashboard?new_vip=true");
+      } else {
+        router.push("/dashboard");
+      }
+      
       router.refresh(); 
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
