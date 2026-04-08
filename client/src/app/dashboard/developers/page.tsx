@@ -221,7 +221,11 @@ export default function DevelopersPage() {
   },
   body: JSON.stringify({
     event: 'USER_SIGNUP',
-    metadata: { plan: 'PRO' }
+    metadata: {
+      plan: "pro", 
+      amount: 99,
+      customer: "TEST_USER_ID" // Highly Recommended: For unique tracking & 409 duplicate protection
+    }
   })
 });`;
                       navigator.clipboard.writeText(code);
@@ -243,8 +247,8 @@ export default function DevelopersPage() {
                   <div className="pl-8 text-zinc-400">{`'Content-Type': 'application/json'`}</div>
                   <div className="pl-4 text-zinc-400">{`},`}</div>
                   <div className="pl-4 text-zinc-400">{`body: JSON.stringify({`}</div>
-                  <div className="pl-8 text-amber-400">{`event: 'USER_SIGNUP',`}</div>
-                  <div className="pl-8 text-zinc-400">{`metadata: { plan: 'PRO' }`}</div>
+                  <div className="pl-8 text-amber-400">{`event: 'PLAN_UPGRADE',`}</div>
+                  <div className="pl-8 text-zinc-400">{`metadata: { plan: 'pro', amount: 99, customer: 'CUST_123' }`}</div>
                   <div className="pl-4 text-zinc-400">{`})`}</div>
                   <div className="text-emerald-500/70">{`});`}</div>
                 </div>

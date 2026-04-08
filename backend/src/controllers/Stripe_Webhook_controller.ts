@@ -77,10 +77,11 @@ export const stripeWebhook = async (req: Request, res: Response) => {
 
         console.log(`[STRIPE] Database updated successfully for user ${userId}`);
         
-        // Final Step: Invalidate cache so dashboard shows fresh PRO data instantly
+        // Final Step: Invalidate cache so dashboard and API limits are fresh
         const { invalidateCache } = require("../utils/redis");
         await invalidateCache(`user-stats:${userId}`);
-        await invalidateCache(`user-plan:${userId}`); // 🚀 GO PRO IMMEDIATELY
+        await invalidateCache(`user-plan:${userId}`); 
+        await invalidateCache(`usage:count:${userId}:*`); // 🚀 UNLOCK API LIMITS INSTANTLY
         await invalidateCache("admin-stats:overall");
         
       } catch (dbError) {
@@ -130,6 +131,7 @@ export const stripeWebhook = async (req: Request, res: Response) => {
         for (const sub of affectedSubscriptions) {
           await invalidateCache(`user-stats:${sub.userId}`);
           await invalidateCache(`user-plan:${sub.userId}`); // Sync plans
+          await invalidateCache(`usage:count:${sub.userId}:*`); // 🚀 SYNC LIMITS INSTANTLY
         }
         await invalidateCache("admin-stats:overall");
 

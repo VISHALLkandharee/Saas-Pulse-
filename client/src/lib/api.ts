@@ -53,7 +53,12 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         // If refresh fails, the user needs to log in again
-        window.location.href = "/login";
+        if (typeof window !== "undefined") {
+          const path = window.location.pathname;
+          if (path !== "/login" && path !== "/register" && path !== "/") {
+            window.location.href = "/login";
+          }
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

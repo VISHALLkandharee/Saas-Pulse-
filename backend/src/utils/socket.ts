@@ -26,7 +26,12 @@ export const initSocket = (server: HttpServer) => {
   });
 
   io.on("connection", (socket) => {
-    console.log(`[SOCKET] Client connected: ${socket.id}`);
+    const userId = socket.handshake.query.userId;
+    
+    if (userId && typeof userId === 'string') {
+      socket.join(userId);
+      console.log(`[SOCKET] User ${userId} joined private room: ${socket.id}`);
+    }
 
     socket.on("disconnect", () => {
       console.log(`[SOCKET] Client disconnected: ${socket.id}`);

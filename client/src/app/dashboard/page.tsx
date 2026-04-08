@@ -116,36 +116,46 @@ export default function DashboardPage() {
     const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:8000", {
       withCredentials: true,
       transports: ["websocket", "polling"],
+      query: { userId: user?.id }
     });
 
     socket.on("connect", () => {
       console.log("[SOCKET] Connected to real-time feed:", socket.id);
     });
 
-    // Handle new incoming pulses in real-time
+    // Handle new incoming pulses in real-time (Private Owner Room)
     socket.on("new-pulse", (newActivity: ActivityItem) => {
-      console.log("[SOCKET] New pulse received:", newActivity);
+      console.log("[SOCKET] New private pulse received:", newActivity);
       
       const isOwner = newActivity.userId === user?.id;
-      const activityWithContext = {
-        ...newActivity,
-        message: formatActivityMessage(newActivity.event),
-        isOwner
-      };
       
-      // Update cache manually for immediate feedback
+      // Update cache manually for immediate feedback in the Feed
       queryClient.setQueryData(["activities"], (old: ActivityItem[] | undefined) => {
         return [newActivity, ...(old || [])].slice(0, 15);
       });
       
-      if (["PLAN_UPGRADE", "USER_SIGNUP"].includes(newActivity.event) && !isOwner) {
-        setActiveToast(activityWithContext);
-        setTimeout(() => setActiveToast(null), 5000);
-      }
-      
+      // Invalidate stats if it's a high-level event
       if (["PLAN_UPGRADE", "NEW_SUBSCRIPTION"].includes(newActivity.event)) {
         queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       }
+    });
+
+    // Handle community-wide social proof (Anonymized)
+    socket.on("community-pulse", (data: { event: string, message: string }) => {
+      console.log("[SOCKET] Community toast received:", data);
+      
+      const toastWithContext: any = {
+        id: Math.random().toString(),
+        userId: "community",
+        event: data.event,
+        message: data.message,
+        timestamp: new Date().toISOString(),
+        userEmail: "Saas Pulse",
+        isOwner: false
+      };
+      
+      setActiveToast(toastWithContext);
+      setTimeout(() => setActiveToast(null), 5000);
     });
 
     // Handle subscription status changes in real-time
@@ -398,7 +408,7 @@ function OnboardingCard({ apiKey }: { apiKey?: string | null }) {
   });
 
   const displayKey = apiKey || 'generate_to_see_key...';
-  const curlExample = `curl -X POST ${(process.env.NEXT_PUBLIC_RAILWAY_URL || 'http://localhost:8000')}/api/v1/event -H "Content-Type: application/json" -H "x-api-key: ${apiKey || 'YOUR_API_KEY'}" -d '{"event": "NEW_SALE", "metadata": {"mrr": 49}}'`;
+  const curlExample = `curl -X POST ${(process.env.NEXT_PUBLIC_RAILWAY_URL || 'http://localhost:8000')}/api/v1/event -H "Content-Type: application/json" -H "x-api-key: ${apiKey || 'YOUR_API_KEY'}" -d '{"event": "NEW_SALE", "metadata": {"mrr": 49, "customer": "CUST_DEFAULT"}}'`;
   
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-zinc-900/50 border border-emerald-500/10 rounded-3xl p-8 md:p-12 relative overflow-hidden">

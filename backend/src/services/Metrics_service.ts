@@ -162,7 +162,8 @@ export class MetricsService {
     // 2. Business Pulses Aggregation
     const pulses = await prisma.activity.findMany({
       where: { userId, createdAt: { gte: retentionDate } },
-      select: { event: true, metadata: true, createdAt: true }
+      select: { event: true, metadata: true, createdAt: true },
+      orderBy: { createdAt: 'asc' }
     });
 
     let currentMonthMrr = 0;
@@ -184,20 +185,28 @@ export class MetricsService {
       const amount = typeof val === 'number' ? val : (parseFloat(val) || 0);
       const custId = meta.customer || meta.customerId || meta.email || meta.userId;
 
-      if (!custId) return; // Skip events with no identity
-
       if (p.createdAt >= startOfCurrentMonth) {
-        currentCustomerIds.add(String(custId));
-        // Overwrite with latest pulse value (Latest state wins)
-        currentMonthCustomerMrr.set(String(custId), amount);
+        // Track unique identity if available
+        if (custId) {
+          currentCustomerIds.add(String(custId));
+          currentMonthCustomerMrr.set(String(custId), amount);
+        } else {
+          // If no identity, still count the revenue as a guest pulse
+          currentMonthMrr += amount;
+        }
+
         if (p.event === "SUBSCRIPTION_CANCELLED" || p.event === "CHURN") cancelledCount++;
       } else if (p.createdAt >= startOfPrevMonth && p.createdAt < startOfCurrentMonth) {
-        prevCustomerIds.add(String(custId));
-        prevMonthCustomerMrr.set(String(custId), amount);
+        if (custId) {
+          prevCustomerIds.add(String(custId));
+          prevMonthCustomerMrr.set(String(custId), amount);
+        } else {
+          prevMonthMrr += amount;
+        }
       }
     });
 
-    // Sum up the deduplicated MRR
+    // Sum up the deduplicated stateful MRR
     currentMonthCustomerMrr.forEach((val) => currentMonthMrr += val);
     prevMonthCustomerMrr.forEach((val) => prevMonthMrr += val);
 

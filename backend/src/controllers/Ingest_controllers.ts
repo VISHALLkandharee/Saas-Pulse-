@@ -138,19 +138,34 @@ export const ingestEvent = async (req: Request, res: Response) => {
         displayEmail = `${name.charAt(0)}****@${domain}`;
       }
 
-      io.emit("new-pulse", {
+      // 🛡️ 1. Private Pulse: Full data only for the owner
+      io.to(userId).emit("new-pulse", {
         id: newActivity.id,
         userId: newActivity.userId,
         event: newActivity.event,
         timestamp: newActivity.createdAt.toISOString(),
         userEmail: displayEmail,
         metadata: newActivity.metadata,
-        isOwner: false // Frontend will determine this
+        isOwner: false // Frontend determines this
       });
       
-      // Clear Redis cache to ensure real-time dashboard updates
+      // 🎉 2. Public Pulse: Anonymized social proof for the whole community
+      if (["PLAN_UPGRADE", "USER_SIGNUP"].includes(newActivity.event)) {
+        io.emit("community-pulse", {
+          event: newActivity.event,
+          message: newActivity.event === "USER_SIGNUP" 
+            ? "A new founder just joined the pulse! 🚀" 
+            : "Someone just upgraded to PRO! 🔥"
+        });
+      }
+      
+      // Clear Redis cache for the specific user
       await invalidateCache(`user-stats:${userId}`);
-      await invalidateCache(`admin-stats:overall`);
+      
+      // Only clear Admin Stats for high-level plan changes (Optimization)
+      if (["PLAN_UPGRADE", "CHURN", "SUBSCRIPTION_CANCELLED"].includes(newActivity.event)) {
+        await invalidateCache(`admin-stats:overall`);
+      }
       
     } catch (err) {
       console.error("[SOCKET/CACHE] Failed to emit event or invalidate cache:", err);
