@@ -319,6 +319,45 @@ export default function DevelopersPage() {
                   </div>
                 </div>
 
+
+
+                <div className="mt-8 border-t border-zinc-900 pt-8">
+                  <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2 mb-6">
+                     <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
+                     API Response Codes
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 bg-zinc-900/40 border border-zinc-800/50 rounded-2xl flex items-start gap-3">
+                      <div className="text-emerald-500 font-mono text-xs font-bold pt-0.5">201</div>
+                      <div className="space-y-1">
+                        <div className="text-xs font-bold text-zinc-300">Pulse Ingested</div>
+                        <div className="text-[10px] text-zinc-500">Everything is perfect. Pulse is live.</div>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-zinc-900/40 border border-zinc-800/50 rounded-2xl flex items-start gap-3">
+                      <div className="text-amber-500 font-mono text-xs font-bold pt-0.5">402</div>
+                      <div className="space-y-1">
+                        <div className="text-xs font-bold text-zinc-300">Limit Reached</div>
+                        <div className="text-[10px] text-zinc-500">Upgrade your SaaS Pulse plan.</div>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-zinc-900/40 border border-zinc-800/50 rounded-2xl flex items-start gap-3 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.03)]">
+                      <div className="text-indigo-500 font-mono text-xs font-bold pt-0.5">409</div>
+                      <div className="space-y-1">
+                        <div className="text-xs font-bold text-zinc-300">State Conflict</div>
+                        <div className="text-[10px] text-zinc-500 italic">User is already on this plan. Don't charge again.</div>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-zinc-900/40 border border-zinc-800/50 rounded-2xl flex items-start gap-3">
+                      <div className="text-rose-500 font-mono text-xs font-bold pt-0.5">400</div>
+                      <div className="space-y-1">
+                        <div className="text-xs font-bold text-zinc-300">Bad Request</div>
+                        <div className="text-[10px] text-zinc-500">Missing 'event' or malformed JSON.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="mt-8 p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
                   <p className="text-[11px] text-zinc-400 leading-relaxed italic">
                     💡 <span className="text-emerald-500 font-bold">Pro Tip:</span> Always send at least one <strong>Identity key</strong> with every pulse. This ensures your "Active Customers" count stays perfectly accurate even if your users are making thousands of requests.

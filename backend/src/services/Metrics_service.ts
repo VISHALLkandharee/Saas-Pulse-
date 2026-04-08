@@ -147,7 +147,7 @@ export class MetricsService {
           userId, 
           createdAt: { gte: startOfCurrentMonth },
           NOT: {
-            event: { in: ["USER_SIGNUP", "USER_LOGIN", "PLAN_UPGRADE"] }
+            event: { in: ["USER_SIGNUP", "USER_LOGIN"] }
           }
         }
       });
@@ -157,7 +157,7 @@ export class MetricsService {
 
     const plan = (subscription as any)?.plan || "FREE";
     const limits: Record<string, number> = { FREE: 1000, PRO: 50000, ENTERPRISE: 999999999 };
-    const limit = limits[plan];
+    const limit = limits[plan] || 1000; // Final safety fallback
 
     // 2. Business Pulses Aggregation
     const pulses = await prisma.activity.findMany({
@@ -171,26 +171,35 @@ export class MetricsService {
     const prevCustomerIds = new Set();
     let cancelledCount = 0;
 
+    // 🕊️ Business Logic: Track the 'Latest State' of each customer to prevent double-counting
+    const currentMonthCustomerMrr = new Map<string, number>();
+    const prevMonthCustomerMrr = new Map<string, number>();
+
     pulses.forEach((p: any) => {
-      // Exclude internal system events of the founder themselves
+      // Exclude internal system events
       if (["USER_LOGIN", "USER_SIGNUP"].includes(p.event)) return;
 
-      const meta = p.metadata || {};
+      const meta = (p.metadata as any) || {};
       const val = meta.mrr || meta.amount || meta.value || 0;
       const amount = typeof val === 'number' ? val : (parseFloat(val) || 0);
-      
-      // Identify the customer (Priority: customer > customerId > email > userId)
       const custId = meta.customer || meta.customerId || meta.email || meta.userId;
 
+      if (!custId) return; // Skip events with no identity
+
       if (p.createdAt >= startOfCurrentMonth) {
-        currentMonthMrr += amount;
-        if (custId) currentCustomerIds.add(String(custId));
+        currentCustomerIds.add(String(custId));
+        // Overwrite with latest pulse value (Latest state wins)
+        currentMonthCustomerMrr.set(String(custId), amount);
         if (p.event === "SUBSCRIPTION_CANCELLED" || p.event === "CHURN") cancelledCount++;
       } else if (p.createdAt >= startOfPrevMonth && p.createdAt < startOfCurrentMonth) {
-        prevMonthMrr += amount;
-        if (custId) prevCustomerIds.add(String(custId));
+        prevCustomerIds.add(String(custId));
+        prevMonthCustomerMrr.set(String(custId), amount);
       }
     });
+
+    // Sum up the deduplicated MRR
+    currentMonthCustomerMrr.forEach((val) => currentMonthMrr += val);
+    prevMonthCustomerMrr.forEach((val) => prevMonthMrr += val);
 
     let apiKeyRecord = await prisma.apiKey.findFirst({
       where: { userId },
@@ -208,17 +217,18 @@ export class MetricsService {
       const mRev = pulses
         .filter((p: any) => p.createdAt >= mStart && p.createdAt <= mEnd)
         .reduce((sum: number, p: any) => {
-          const m = p.metadata as any || {};
+          const m = (p.metadata as any) || {};
           const v = m.mrr || m.amount || m.value || 0;
-          return sum + (typeof v === 'number' ? v : (parseFloat(v) || 0));
+          const a = typeof v === 'number' ? v : (parseFloat(v) || 0);
+          return sum + (isNaN(a) ? 0 : a);
         }, 0);
 
-      revenueHistory.push({ month: mName, revenue: mRev });
+      revenueHistory.push({ month: mName, revenue: Number(mRev.toFixed(2)) });
     }
 
     const result = {
       mrr: {
-        value: currentMonthMrr,
+        value: Number(currentMonthMrr.toFixed(2)),
         trend: MetricsService.calculateTrend(currentMonthMrr, prevMonthMrr),
         label: "Your Business MRR",
       },
@@ -228,21 +238,21 @@ export class MetricsService {
         label: "Customers Tracked",
       },
       churnRate: {
-        value: prevCustomerIds.size > 0 ? (cancelledCount / prevCustomerIds.size) * 100 : 0,
+        value: prevCustomerIds.size > 0 ? Number(((cancelledCount / prevCustomerIds.size) * 100).toFixed(1)) : 0,
         trend: 0,
         label: "Business Churn",
       },
       usage: {
         current: usageCount,
         limit: limit,
-        percent: Math.min(Math.round((usageCount / limit) * 100), 100)
+        percent: limit > 0 ? Math.min(Math.round((usageCount / limit) * 100), 100) : 0
       },
       apiKey: apiKeyRecord?.key || null,
-      hasIntegrated: !!apiKeyRecord, // True if they've at least generated a key once
+      hasIntegrated: !!apiKeyRecord,
       revenueHistory,
     };
 
-    await setCache(cacheKey, result, 3600); // Cache for 1 hour
+    await setCache(cacheKey, result, 3600); 
     return result;
   }
 

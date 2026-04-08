@@ -41,7 +41,7 @@ export const ingestEvent = async (req: Request, res: Response) => {
             userId,
             createdAt: { gte: startOfMonth },
             NOT: {
-              event: { in: ["USER_SIGNUP", "USER_LOGIN", "PLAN_UPGRADE"] }
+              event: { in: ["USER_SIGNUP", "USER_LOGIN"] }
             }
           }
         });
@@ -61,6 +61,36 @@ export const ingestEvent = async (req: Request, res: Response) => {
         });
       }
     }
+
+    // --- STATEFUL GATEKEEPER START ---
+    // Prevent duplicate upgrades and manage customer plan lifecycle
+    const isUpgrade = String(event).toUpperCase() === "PLAN_UPGRADE";
+    const isCancellation = ["SUBSCRIPTION_CANCELLED", "CHURN"].includes(String(event).toUpperCase());
+
+    if (isUpgrade || isCancellation) {
+      const meta = metadata || {};
+      const custId = meta.customer || meta.customerId || meta.email || meta.userId;
+      const targetPlan = isUpgrade ? (meta.plan || meta.name) : "FREE";
+
+      if (custId) {
+        const stateKey = `customer:plan:${userId}:${custId}`;
+
+        if (isUpgrade && targetPlan) {
+          const currentPlan = await redisClient.get(stateKey);
+          if (currentPlan === String(targetPlan).toLowerCase()) {
+            return res.status(409).json({
+              success: false,
+              message: `Conflict: Customer is already on the '${targetPlan}' plan. Duplicate pulse rejected.`,
+            });
+          }
+          (req as any).pendingPlanUpdate = { key: stateKey, plan: String(targetPlan).toLowerCase() };
+        } else if (isCancellation) {
+          // Reset state on cancellation so they can upgrade again in the future
+          (req as any).pendingPlanUpdate = { key: stateKey, plan: "free" };
+        }
+      }
+    }
+    // --- STATEFUL GATEKEEPER END ---
 
     // Save the incoming event as an Activity belonging to the founder
     const newActivity = await prisma.activity.create({
@@ -128,6 +158,12 @@ export const ingestEvent = async (req: Request, res: Response) => {
 
     // Bonus feature: If it's a paid event, we could also theoretically update the MRR or Subscription tables here,
     // but for the basic "Pulse", we just ingest it as an activity to display on the dashboard stream.
+
+    // Finalize state update if this was a new plan upgrade
+    const pendingUpdate = (req as any).pendingPlanUpdate;
+    if (pendingUpdate) {
+      await redisClient.setEx(pendingUpdate.key, 2592000, pendingUpdate.plan); // 30 days
+    }
 
     res.status(201).json({
       success: true,
