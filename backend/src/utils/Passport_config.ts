@@ -36,6 +36,10 @@ passport.use(
           // In a perfect world, password would be optional in schema
           const randomPass = "OAUTH_USER_" + Math.random().toString(36).slice(-10);
           
+          // 🚀 VIP Check: If user was invited via waitlist, they get PRO for free + isBeta tag
+          const waitlistEntry = await prisma.waitlist.findUnique({ where: { email } });
+          const isInvited = waitlistEntry?.status === "INVITED";
+
           user = await prisma.user.create({
             data: {
               email,
@@ -43,9 +47,22 @@ passport.use(
               image,
               Role: "USER",
               password: randomPass, 
+              isBeta: isInvited, // Auto-tag if invited
+              subscription: {
+                create: {
+                  plan: isInvited ? "PRO" : "FREE",
+                  status: "ACTIVE",
+                  mrr: 0.0, // Beta users get PRO for $0
+                }
+              }
             },
             include: { subscription: true }
           });
+
+          // Cleanup waitlist after registration
+          if (waitlistEntry) {
+            await prisma.waitlist.delete({ where: { email } }).catch(() => {});
+          }
           
           // Log signup activity
           await prisma.activity.create({

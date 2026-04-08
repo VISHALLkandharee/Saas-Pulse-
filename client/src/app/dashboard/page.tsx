@@ -22,6 +22,7 @@ import RevenueChart from "@/components/dashboard/RevenueChart";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/context/Auth_Context";
 
 import { io } from "socket.io-client";
@@ -221,7 +222,7 @@ export default function DashboardPage() {
                 </div>
                 {stats.usage.percent >= 80 && (
                   <p className="text-[9px] text-rose-400 font-bold uppercase tracking-tighter animate-pulse">
-                    Approaching limit. <button onClick={() => router.push('/dashboard/billing')} className="underline">Upgrade now</button>
+                    Approaching limit. <Link href="/dashboard/billing" className="underline">Upgrade now</Link>
                   </p>
                 )}
               </div>
@@ -229,19 +230,19 @@ export default function DashboardPage() {
           </div>
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-start md:justify-end">
             {user?.Role === "ADMIN" && (
-              <button 
-                onClick={() => router.push("/admin")}
+              <Link 
+                href="/admin"
                 className="text-xs bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 px-4 py-2 rounded-full transition-all border border-purple-500/20 font-bold uppercase tracking-wider flex items-center gap-2"
               >
                 <Shield size={14} /> Founder Hub
-              </button>
+              </Link>
             )}
             {user?.Role === "ADMIN" && (
-              <button onClick={() => router.push("/dashboard/users")} className="text-xs bg-zinc-900 hover:bg-zinc-800 text-zinc-300 px-4 py-2 rounded-full transition-all border border-zinc-800 hover:border-zinc-700 font-bold uppercase tracking-wider">Manage Members</button>
+              <Link href="/dashboard/users" className="text-xs bg-zinc-900 hover:bg-zinc-800 text-zinc-300 px-4 py-2 rounded-full transition-all border border-zinc-800 hover:border-zinc-700 font-bold uppercase tracking-wider">Manage Members</Link>
             )}
-            <button onClick={() => router.push("/dashboard/developers")} className="text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-4 py-2 rounded-full transition-all border border-emerald-500/20 font-bold uppercase tracking-wider flex items-center gap-2"><Code2 size={14} /> Developers</button>
-            <button onClick={() => router.push("/dashboard/billing")} className="text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-4 py-2 rounded-full transition-all border border-emerald-500/20 font-bold uppercase tracking-wider flex items-center gap-2"><Zap size={14} /> Billing</button>
-            <button onClick={() => router.push("/dashboard/settings")} className="text-xs bg-zinc-900 hover:bg-zinc-800 text-zinc-300 px-4 py-2 rounded-full transition-all border border-zinc-800 hover:border-zinc-700 font-bold uppercase tracking-wider flex items-center gap-2"><Settings size={14} /> Settings</button>
+            <Link href="/dashboard/developers" className="text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-4 py-2 rounded-full transition-all border border-emerald-500/20 font-bold uppercase tracking-wider flex items-center gap-2"><Code2 size={14} /> Developers</Link>
+            <Link href="/dashboard/billing" className="text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-4 py-2 rounded-full transition-all border border-emerald-500/20 font-bold uppercase tracking-wider flex items-center gap-2"><Zap size={14} /> Billing</Link>
+            <Link href="/dashboard/settings" className="text-xs bg-zinc-900 hover:bg-zinc-800 text-zinc-300 px-4 py-2 rounded-full transition-all border border-zinc-800 hover:border-zinc-700 font-bold uppercase tracking-wider flex items-center gap-2"><Settings size={14} /> Settings</Link>
             <button onClick={authLogout} className="text-sm text-zinc-500 hover:text-white transition-colors">Sign Out</button>
             <button 
               onClick={handleRefresh} 
@@ -475,12 +476,12 @@ function OnboardingCard({ apiKey }: { apiKey?: string | null }) {
           >
             Documentation <ArrowUpRight size={18} />
           </button>
-          <button 
-             onClick={() => router.push('/dashboard/developers')}
+          <Link 
+             href="/dashboard/developers"
              className="text-zinc-400 hover:text-white text-sm font-semibold transition-colors"
           >
              Go to SDK Settings
-          </button>
+          </Link>
         </div>
       </div>
     </motion.div>

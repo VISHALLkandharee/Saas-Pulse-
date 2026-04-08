@@ -470,7 +470,20 @@ const deleteAccount = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.userId;
 
-    await prisma.user.delete({ where: { id: userId } });
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    console.log(`[AUTH] Initiating total account wipe for user: ${userId}`);
+
+    // Perform a transaction to ensure all-or-nothing cleanup
+    // We use deleteMany for related records because it won't throw an error if 0 records are found
+    await prisma.$transaction([
+      prisma.activity.deleteMany({ where: { userId } }),
+      prisma.apiKey.deleteMany({ where: { userId } }),
+      prisma.subscription.deleteMany({ where: { userId } }),
+      prisma.user.delete({ where: { id: userId } }),
+    ]);
 
     const cookieOptions: any = {
       httpOnly: true,
