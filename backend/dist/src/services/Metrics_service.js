@@ -5,7 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MetricsService = void 0;
 const prisma_1 = __importDefault(require("../utils/prisma"));
-const redis_1 = require("../utils/redis");
+const redis_1 = __importDefault(require("../utils/redis"));
+const redis_2 = require("../utils/redis");
 class MetricsService {
     /**
      * Returns dashboard stats for the founder.
@@ -25,7 +26,7 @@ class MetricsService {
      */
     static async getAdminStats() {
         const cacheKey = 'admin-stats:overall';
-        const cachedStats = await (0, redis_1.getCache)(cacheKey);
+        const cachedStats = await (0, redis_2.getCache)(cacheKey);
         if (cachedStats)
             return cachedStats;
         const now = new Date();
@@ -106,7 +107,7 @@ class MetricsService {
             },
             revenueHistory,
         };
-        await (0, redis_1.setCache)(cacheKey, result, 3600); // Cache for 1 hour
+        await (0, redis_2.setCache)(cacheKey, result, 3600); // Cache for 1 hour
         return result;
     }
     /**
@@ -115,7 +116,7 @@ class MetricsService {
      */
     static async getUserStats(userId, role) {
         const cacheKey = `user-stats:${userId}`;
-        const cachedStats = await (0, redis_1.getCache)(cacheKey);
+        const cachedStats = await (0, redis_2.getCache)(cacheKey);
         if (cachedStats)
             return cachedStats;
         const now = new Date();
@@ -123,43 +124,94 @@ class MetricsService {
         const startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         const retentionDate = await MetricsService.getRetentionDate(userId, role);
         const subscription = await prisma_1.default.subscription.findUnique({ where: { userId } });
-        // 1. SaaS Pulse Usage
-        const usageCount = await prisma_1.default.activity.count({
-            where: { userId, createdAt: { gte: startOfCurrentMonth } }
-        });
+        // 1. SaaS Pulse Usage (Optimized Redis-first lookup)
+        const monthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
+        const usageKey = `usage:count:${userId}:${monthKey}`;
+        let usageCountStr = null;
+        try {
+            if (redis_1.default.isReady) {
+                usageCountStr = await redis_1.default.get(usageKey);
+            }
+        }
+        catch (error) {
+            console.warn("[Redis] Failed to get usage count cache, falling back to DB.");
+        }
+        let usageCount;
+        if (usageCountStr !== null && !isNaN(parseInt(usageCountStr))) {
+            usageCount = parseInt(usageCountStr);
+        }
+        else {
+            // Fallback: Query Database and perform "Late Warming"
+            usageCount = await prisma_1.default.activity.count({
+                where: {
+                    userId,
+                    createdAt: { gte: startOfCurrentMonth },
+                    NOT: {
+                        event: { in: ["USER_SIGNUP", "USER_LOGIN"] }
+                    }
+                }
+            });
+            // Warm the cache for future requests
+            try {
+                if (redis_1.default.isReady) {
+                    await redis_1.default.setEx(usageKey, 2592000, String(usageCount));
+                }
+            }
+            catch (error) {
+                console.warn("[Redis] Failed to set usage count cache.");
+            }
+        }
         const plan = subscription?.plan || "FREE";
         const limits = { FREE: 1000, PRO: 50000, ENTERPRISE: 999999999 };
-        const limit = limits[plan];
+        const limit = limits[plan] || 1000; // Final safety fallback
         // 2. Business Pulses Aggregation
         const pulses = await prisma_1.default.activity.findMany({
             where: { userId, createdAt: { gte: retentionDate } },
-            select: { event: true, metadata: true, createdAt: true }
+            select: { event: true, metadata: true, createdAt: true },
+            orderBy: { createdAt: 'asc' }
         });
         let currentMonthMrr = 0;
         let prevMonthMrr = 0;
         const currentCustomerIds = new Set();
         const prevCustomerIds = new Set();
         let cancelledCount = 0;
+        // 🕊️ Business Logic: Track the 'Latest State' of each customer to prevent double-counting
+        const currentMonthCustomerMrr = new Map();
+        const prevMonthCustomerMrr = new Map();
         pulses.forEach((p) => {
-            if (["USER_LOGIN", "USER_SIGNUP", "PLAN_UPGRADE"].includes(p.event))
+            // Exclude internal system events
+            if (["USER_LOGIN", "USER_SIGNUP"].includes(p.event))
                 return;
             const meta = p.metadata || {};
             const val = meta.mrr || meta.amount || meta.value || 0;
             const amount = typeof val === 'number' ? val : (parseFloat(val) || 0);
-            const custId = meta.customerId || meta.userId || meta.email;
+            const custId = meta.customer || meta.customerId || meta.email || meta.userId;
             if (p.createdAt >= startOfCurrentMonth) {
-                currentMonthMrr += amount;
-                if (custId)
+                // Track unique identity if available
+                if (custId) {
                     currentCustomerIds.add(String(custId));
-                if (p.event === "SUBSCRIPTION_CANCELLED")
+                    currentMonthCustomerMrr.set(String(custId), amount);
+                }
+                else {
+                    // If no identity, still count the revenue as a guest pulse
+                    currentMonthMrr += amount;
+                }
+                if (p.event === "SUBSCRIPTION_CANCELLED" || p.event === "CHURN")
                     cancelledCount++;
             }
             else if (p.createdAt >= startOfPrevMonth && p.createdAt < startOfCurrentMonth) {
-                prevMonthMrr += amount;
-                if (custId)
+                if (custId) {
                     prevCustomerIds.add(String(custId));
+                    prevMonthCustomerMrr.set(String(custId), amount);
+                }
+                else {
+                    prevMonthMrr += amount;
+                }
             }
         });
+        // Sum up the deduplicated stateful MRR
+        currentMonthCustomerMrr.forEach((val) => currentMonthMrr += val);
+        prevMonthCustomerMrr.forEach((val) => prevMonthMrr += val);
         let apiKeyRecord = await prisma_1.default.apiKey.findFirst({
             where: { userId },
             orderBy: { createdAt: 'desc' }
@@ -176,13 +228,14 @@ class MetricsService {
                 .reduce((sum, p) => {
                 const m = p.metadata || {};
                 const v = m.mrr || m.amount || m.value || 0;
-                return sum + (typeof v === 'number' ? v : (parseFloat(v) || 0));
+                const a = typeof v === 'number' ? v : (parseFloat(v) || 0);
+                return sum + (isNaN(a) ? 0 : a);
             }, 0);
-            revenueHistory.push({ month: mName, revenue: mRev });
+            revenueHistory.push({ month: mName, revenue: Number(mRev.toFixed(2)) });
         }
         const result = {
             mrr: {
-                value: currentMonthMrr,
+                value: Number(currentMonthMrr.toFixed(2)),
                 trend: MetricsService.calculateTrend(currentMonthMrr, prevMonthMrr),
                 label: "Your Business MRR",
             },
@@ -192,20 +245,20 @@ class MetricsService {
                 label: "Customers Tracked",
             },
             churnRate: {
-                value: prevCustomerIds.size > 0 ? (cancelledCount / prevCustomerIds.size) * 100 : 0,
+                value: prevCustomerIds.size > 0 ? Number(((cancelledCount / prevCustomerIds.size) * 100).toFixed(1)) : 0,
                 trend: 0,
                 label: "Business Churn",
             },
             usage: {
                 current: usageCount,
                 limit: limit,
-                percent: Math.min(Math.round((usageCount / limit) * 100), 100)
+                percent: limit > 0 ? Math.min(Math.round((usageCount / limit) * 100), 100) : 0
             },
             apiKey: apiKeyRecord?.key || null,
-            hasIntegrated: !!apiKeyRecord, // True if they've at least generated a key once
+            hasIntegrated: !!apiKeyRecord,
             revenueHistory,
         };
-        await (0, redis_1.setCache)(cacheKey, result, 3600); // Cache for 1 hour
+        await (0, redis_2.setCache)(cacheKey, result, 3600);
         return result;
     }
     /**

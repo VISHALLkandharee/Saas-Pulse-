@@ -16,7 +16,14 @@ const Ingest_routes_1 = __importDefault(require("./routes/Ingest_routes"));
 const Admin_routes_1 = __importDefault(require("./routes/Admin_routes"));
 const Stripe_Webhook_controller_1 = require("./controllers/Stripe_Webhook_controller");
 const ErrorHandler_middleware_1 = __importDefault(require("./middlewares/ErrorHandler_middleware"));
+const RateLimit_middleware_1 = require("./middlewares/RateLimit_middleware");
+const Passport_config_1 = __importDefault(require("./utils/Passport_config"));
 const app = (0, express_1.default)();
+app.set('trust proxy', 1);
+// Initialize Passport for GitHub OAuth
+app.use(Passport_config_1.default.initialize());
+// Apply global rate limiting to protect the server
+app.use(RateLimit_middleware_1.generalRateLimiter);
 // Request logger
 app.use((req, res, next) => {
     console.log(`[REQUEST] ${req.method} ${req.url}`);

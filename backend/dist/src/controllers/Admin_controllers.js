@@ -3,9 +3,48 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.exportSystemData = void 0;
+exports.exportSystemData = exports.grantWaitlistAccess = exports.getWaitlist = void 0;
 const prisma_1 = __importDefault(require("../utils/prisma"));
+const Email_service_1 = require("../services/Email_service");
+const getWaitlist = async (req, res) => {
+    try {
+        const waitlist = await prisma_1.default.waitlist.findMany({
+            orderBy: { createdAt: 'desc' }
+        });
+        res.status(200).json({ success: true, waitlist });
+    }
+    catch (error) {
+        console.error("[ADMIN WAITLIST] Fetch failed:", error);
+        res.status(500).json({ message: "Failed to fetch waitlist" });
+    }
+};
+exports.getWaitlist = getWaitlist;
+const grantWaitlistAccess = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ message: "Email is required" });
+        }
+        // 1. Mark as INVITED in the database
+        await prisma_1.default.waitlist.update({
+            where: { email },
+            data: { status: "INVITED" }
+        });
+        // 2. Trigger the real Resend invitation
+        await Email_service_1.EmailService.sendInviteEmail(email);
+        res.status(200).json({
+            success: true,
+            message: `Access granted! Invitation sent to ${email}`
+        });
+    }
+    catch (error) {
+        console.error("[ADMIN WAITLIST] Grant failed:", error);
+        res.status(500).json({ message: "Failed to grant early access" });
+    }
+};
+exports.grantWaitlistAccess = grantWaitlistAccess;
 const exportSystemData = async (req, res) => {
+    // ... existing export code ...
     try {
         // Only ADMINs can reach this due to middleware, but we double check context
         const userRole = req.user?.role;

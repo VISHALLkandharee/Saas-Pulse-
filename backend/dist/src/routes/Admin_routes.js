@@ -8,4 +8,6 @@ const router = (0, express_1.Router)();
 router.use(Auth_Middleware_1.authMiddleware);
 router.use(Auth_Middleware_1.authorizeAdmin);
 router.get("/export", Admin_controllers_1.exportSystemData);
+router.get("/waitlist", Admin_controllers_1.getWaitlist);
+router.post("/waitlist/invite", Admin_controllers_1.grantWaitlistAccess);
 exports.default = router;

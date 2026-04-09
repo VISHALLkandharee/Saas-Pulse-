@@ -3,8 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteAccount = exports.changePassword = exports.refreshAccessToken = exports.logoutUser = exports.updateProfile = exports.getprofile = exports.loginUser = exports.registerUser = void 0;
-exports.getallUsers = getallUsers;
+exports.joinWaitlist = exports.githubAuthCallback = exports.deleteAccount = exports.changePassword = exports.refreshAccessToken = exports.getallUsers = exports.logoutUser = exports.updateProfile = exports.getprofile = exports.loginUser = exports.registerUser = void 0;
 const jwt_1 = require("../utils/jwt");
 const prisma_1 = __importDefault(require("../utils/prisma"));
 const Email_service_1 = require("../services/Email_service");
@@ -28,6 +27,9 @@ const registerUser = async (req, res) => {
             role = "ADMIN";
         }
         const hashedPassword = await (0, jwt_1.hashPassword)(password);
+        // 🚀 VIP Check: If user was invited via waitlist, they get PRO for free + isBeta tag
+        const waitlistEntry = await prisma_1.default.waitlist.findUnique({ where: { email } });
+        const isInvited = waitlistEntry?.status === "INVITED";
         const user = await prisma_1.default.user.create({
             data: {
                 name,
@@ -35,11 +37,12 @@ const registerUser = async (req, res) => {
                 password: hashedPassword,
                 Role: role,
                 image: imagePath,
+                isBeta: isInvited, // Auto-tag if invited
                 subscription: {
                     create: {
-                        plan: "FREE",
+                        plan: isInvited ? "PRO" : "FREE",
                         status: "ACTIVE",
-                        mrr: 0.0,
+                        mrr: 0.0, // Beta users get PRO for $0
                     }
                 }
             },
@@ -52,6 +55,10 @@ const registerUser = async (req, res) => {
                 createdAt: true,
             },
         });
+        // Cleanup waitlist after registration
+        if (waitlistEntry) {
+            await prisma_1.default.waitlist.delete({ where: { email } }).catch(() => { });
+        }
         // Log signup activity (Non-blocking)
         prisma_1.default.activity.create({
             data: {
@@ -79,14 +86,14 @@ const registerUser = async (req, res) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             maxAge: 15 * 60 * 1000,
-            sameSite: "lax",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
             path: "/",
         };
         const refreshTokenOptions = {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             maxAge: 7 * 24 * 60 * 60 * 1000,
-            sameSite: "lax",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
             path: "/",
         };
         return res
@@ -126,7 +133,6 @@ const loginUser = async (req, res) => {
         if (!user) {
             return res.status(400).json({ message: "Invalid email or password" });
         }
-        console.log(user);
         const isPasswordValid = await (0, jwt_1.comparePassword)(password, user.password);
         if (!isPasswordValid) {
             return res.status(400).json({ message: "Invalid email or password" });
@@ -137,7 +143,7 @@ const loginUser = async (req, res) => {
                 userId: user.id,
                 event: "USER_LOGIN",
                 createdAt: {
-                    gt: new Date(Date.now() - 2 * 60 * 60 * 1000) // Increase window to 2 hours
+                    gt: new Date(Date.now() - 2 * 60 * 60 * 1000)
                 }
             }
         });
@@ -150,20 +156,19 @@ const loginUser = async (req, res) => {
                 },
             });
         }
-        // Remove password before sending
         const { password: _, ...userWithoutPassword } = user;
         const accessTokenOptions = {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             maxAge: 15 * 60 * 1000,
-            sameSite: "lax",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
             path: "/",
         };
         const refreshTokenOptions = {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             maxAge: 7 * 24 * 60 * 60 * 1000,
-            sameSite: "lax",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
             path: "/",
         };
         const accessToken = (0, jwt_1.generateAccessToken)({
@@ -207,39 +212,42 @@ const getprofile = async (req, res) => {
                 subscription: true,
             },
         });
-        if (!user)
-            return res.status(404).json({
-                message: "User not found",
-            });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
         res.status(200).json({
             message: "User profile fetched successfully",
             user,
         });
     }
     catch (error) {
-        console.log("Failed fetching user profile", error);
+        console.error("Failed fetching user profile", error);
         res.status(500).json({ message: "Failed fetching user profile" });
     }
 };
 exports.getprofile = getprofile;
 const logoutUser = async (req, res) => {
     try {
-        res
-            .status(200)
-            .clearCookie("accessToken")
-            .clearCookie("refreshToken")
-            .json({ message: "User logged out successfully" });
+        const cookieOptions = {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+            path: "/",
+        };
+        console.log("[AUTH] Initiating session flush for user...");
+        // Nuclear flush: clear both tokens with specific options
+        res.clearCookie("accessToken", cookieOptions);
+        res.clearCookie("refreshToken", cookieOptions);
+        return res.status(200).json({ message: "Session flushed successfully" });
     }
     catch (error) {
-        console.log("Failed logging user out", error);
-        res.status(500).json({ message: "Failed logging user out" });
+        console.error("[AUTH] Logout error:", error);
+        return res.status(200).json({ message: "Logout attempted" }); // Still return 200 to allow frontend redirect
     }
 };
 exports.logoutUser = logoutUser;
-//admin only
-async function getallUsers(req, res) {
+const getallUsers = async (req, res) => {
     try {
-        console.log("user role : ", req.user.Role);
         const users = await prisma_1.default.user.findMany({
             select: {
                 id: true,
@@ -263,11 +271,11 @@ async function getallUsers(req, res) {
         });
     }
     catch (error) {
-        console.log("Failed getting all users", error);
+        console.error("Failed getting all users", error);
         res.status(500).json({ message: "Failed getting all users" });
     }
-}
-//generte Access-Token when it is expired!!
+};
+exports.getallUsers = getallUsers;
 const refreshAccessToken = async (req, res) => {
     const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) {
@@ -290,7 +298,7 @@ const refreshAccessToken = async (req, res) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             maxAge: 15 * 60 * 1000,
-            sameSite: "lax",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
             path: "/",
         };
         res
@@ -299,7 +307,7 @@ const refreshAccessToken = async (req, res) => {
             .json({ message: "Access token refreshed successfully" });
     }
     catch (error) {
-        console.log("Failed refreshing access token", error);
+        console.error("Failed refreshing access token", error);
         if (error.name === "TokenExpiredError") {
             return res.status(401).json({ message: "Refresh token expired. Please login again." });
         }
@@ -373,13 +381,75 @@ const changePassword = async (req, res) => {
     }
 };
 exports.changePassword = changePassword;
+const githubAuthCallback = async (req, res) => {
+    try {
+        const user = req.user;
+        if (!user) {
+            return res.redirect(`${process.env.CLIENT_URL}/login?error=auth_failed`);
+        }
+        const accessToken = (0, jwt_1.generateAccessToken)({
+            userId: user.id,
+            email: user.email,
+            role: user.Role,
+        });
+        const refreshToken = (0, jwt_1.generateRefreshToken)({
+            userId: user.id,
+            email: user.email,
+            role: user.Role,
+        });
+        const accessTokenOptions = {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            maxAge: 15 * 60 * 1000,
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+            path: "/",
+        };
+        const refreshTokenOptions = {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+            path: "/",
+        };
+        res.cookie("accessToken", accessToken, accessTokenOptions);
+        res.cookie("refreshToken", refreshToken, refreshTokenOptions);
+        // Redirect to dashboard on success
+        if (user.isNewVip) {
+            res.redirect(`${process.env.CLIENT_URL}/dashboard?new_vip=true`);
+        }
+        else {
+            res.redirect(`${process.env.CLIENT_URL}/dashboard`);
+        }
+    }
+    catch (error) {
+        console.error("GitHub Auth Callback Error:", error);
+        res.redirect(`${process.env.CLIENT_URL}/login?error=server_error`);
+    }
+};
+exports.githubAuthCallback = githubAuthCallback;
 const deleteAccount = async (req, res) => {
     try {
         const userId = req.user?.userId;
-        // Prisma cascading deletion should handle related records (API keys, logic, etc.)
-        await prisma_1.default.user.delete({ where: { id: userId } });
-        res.clearCookie("accessToken");
-        res.clearCookie("refreshToken");
+        if (!userId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+        console.log(`[AUTH] Initiating total account wipe for user: ${userId}`);
+        // Perform a transaction to ensure all-or-nothing cleanup
+        // We use deleteMany for related records because it won't throw an error if 0 records are found
+        await prisma_1.default.$transaction([
+            prisma_1.default.activity.deleteMany({ where: { userId } }),
+            prisma_1.default.apiKey.deleteMany({ where: { userId } }),
+            prisma_1.default.subscription.deleteMany({ where: { userId } }),
+            prisma_1.default.user.delete({ where: { id: userId } }),
+        ]);
+        const cookieOptions = {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+            path: "/",
+        };
+        res.clearCookie("accessToken", cookieOptions);
+        res.clearCookie("refreshToken", cookieOptions);
         res.status(200).json({ message: "Account deleted successfully" });
     }
     catch (error) {
@@ -388,3 +458,30 @@ const deleteAccount = async (req, res) => {
     }
 };
 exports.deleteAccount = deleteAccount;
+const joinWaitlist = async (req, res) => {
+    try {
+        const { email } = req.body;
+        // 1. Check if person is already a registered user
+        const existingUser = await prisma_1.default.user.findUnique({ where: { email } });
+        if (existingUser) {
+            return res.status(400).json({ message: "You are already a registered user! Please log in." });
+        }
+        // 2. Check if already on waitlist
+        const onWaitlist = await prisma_1.default.waitlist.findUnique({ where: { email } });
+        if (onWaitlist) {
+            return res.status(400).json({ message: "You are already on our waitlist! We'll notify you soon." });
+        }
+        // 3. Add to waitlist
+        await prisma_1.default.waitlist.create({
+            data: { email }
+        });
+        res.status(201).json({
+            message: "Success! You've been added to the private beta waitlist."
+        });
+    }
+    catch (error) {
+        console.error("[WAITLIST] Join failed:", error);
+        res.status(500).json({ message: "Failed to join waitlist. Please try again later." });
+    }
+};
+exports.joinWaitlist = joinWaitlist;

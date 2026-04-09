@@ -135,10 +135,19 @@ export class MetricsService {
     // 1. SaaS Pulse Usage (Optimized Redis-first lookup)
     const monthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
     const usageKey = `usage:count:${userId}:${monthKey}`;
-    let usageCountStr = await redisClient.get(usageKey);
+    let usageCountStr: string | null = null;
+    
+    try {
+      if (redisClient.isReady) {
+        usageCountStr = await redisClient.get(usageKey);
+      }
+    } catch (error) {
+      console.warn("[Redis] Failed to get usage count cache, falling back to DB.");
+    }
+    
     let usageCount: number;
 
-    if (usageCountStr !== null) {
+    if (usageCountStr !== null && !isNaN(parseInt(usageCountStr))) {
       usageCount = parseInt(usageCountStr);
     } else {
       // Fallback: Query Database and perform "Late Warming"
@@ -152,7 +161,13 @@ export class MetricsService {
         }
       });
       // Warm the cache for future requests
-      await redisClient.setEx(usageKey, 2592000, String(usageCount));
+      try {
+        if (redisClient.isReady) {
+          await redisClient.setEx(usageKey, 2592000, String(usageCount));
+        }
+      } catch (error) {
+        console.warn("[Redis] Failed to set usage count cache.");
+      }
     }
 
     const plan = (subscription as any)?.plan || "FREE";

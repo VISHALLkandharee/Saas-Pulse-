@@ -40,6 +40,7 @@ exports.ingestEvent = void 0;
 const prisma_1 = __importDefault(require("../utils/prisma"));
 const socket_1 = require("../utils/socket");
 const redis_1 = require("../utils/redis");
+const redis_2 = __importDefault(require("../utils/redis"));
 const ingestEvent = async (req, res) => {
     try {
         // This userId is injected by the verifyApiKey middleware
@@ -51,23 +52,35 @@ const ingestEvent = async (req, res) => {
         if (!userId) {
             return res.status(500).json({ success: false, message: "Integration context lost" });
         }
-        // Tier Enforcement: Check monthly pulse limits
-        const sub = await prisma_1.default.subscription.findUnique({ where: { userId } });
-        const plan = sub?.plan || "FREE";
+        // Tier Enforcement: Check monthly pulse limits (Plan provided by verifyApiKey middleware)
+        const plan = req.integrationUser?.plan || "FREE";
         // Monthly pulse limits
         const limits = { FREE: 1000, PRO: 50000, ENTERPRISE: Infinity };
         const limit = limits[plan];
         if (limit !== Infinity) {
-            const startOfMonth = new Date();
-            startOfMonth.setDate(1);
-            startOfMonth.setHours(0, 0, 0, 0);
-            const count = await prisma_1.default.activity.count({
-                where: {
-                    userId,
-                    createdAt: { gte: startOfMonth }
-                }
-            });
-            if (count >= limit) {
+            const now = new Date();
+            const monthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
+            const usageKey = `usage:count:${userId}:${monthKey}`;
+            // 1. Get current count from Redis
+            let currentUsage = await redis_2.default.get(usageKey);
+            if (currentUsage === null) {
+                // 2. Cache Miss: Warm up from Database
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                const dbCount = await prisma_1.default.activity.count({
+                    where: {
+                        userId,
+                        createdAt: { gte: startOfMonth },
+                        NOT: {
+                            event: { in: ["USER_SIGNUP", "USER_LOGIN"] }
+                        }
+                    }
+                });
+                await redis_2.default.setEx(usageKey, 2592000, String(dbCount)); // 30 days
+                currentUsage = String(dbCount);
+            }
+            // 3. Atomically increment and check
+            const newUsage = await redis_2.default.incr(usageKey);
+            if (newUsage > limit) {
                 return res.status(402).json({
                     success: false,
                     message: `Pulse limit reached for ${plan} plan. Please upgrade to continue ingesting data.`,
@@ -75,6 +88,33 @@ const ingestEvent = async (req, res) => {
                 });
             }
         }
+        // --- STATEFUL GATEKEEPER START ---
+        // Prevent duplicate upgrades and manage customer plan lifecycle
+        const isUpgrade = String(event).toUpperCase() === "PLAN_UPGRADE";
+        const isCancellation = ["SUBSCRIPTION_CANCELLED", "CHURN"].includes(String(event).toUpperCase());
+        if (isUpgrade || isCancellation) {
+            const meta = metadata || {};
+            const custId = meta.customer || meta.customerId || meta.email || meta.userId;
+            const targetPlan = isUpgrade ? (meta.plan || meta.name) : "FREE";
+            if (custId) {
+                const stateKey = `customer:plan:${userId}:${custId}`;
+                if (isUpgrade && targetPlan) {
+                    const currentPlan = await redis_2.default.get(stateKey);
+                    if (currentPlan === String(targetPlan).toLowerCase()) {
+                        return res.status(409).json({
+                            success: false,
+                            message: `Conflict: Customer is already on the '${targetPlan}' plan. Duplicate pulse rejected.`,
+                        });
+                    }
+                    req.pendingPlanUpdate = { key: stateKey, plan: String(targetPlan).toLowerCase() };
+                }
+                else if (isCancellation) {
+                    // Reset state on cancellation so they can upgrade again in the future
+                    req.pendingPlanUpdate = { key: stateKey, plan: "free" };
+                }
+            }
+        }
+        // --- STATEFUL GATEKEEPER END ---
         // Save the incoming event as an Activity belonging to the founder
         const newActivity = await prisma_1.default.activity.create({
             data: {
@@ -117,24 +157,42 @@ const ingestEvent = async (req, res) => {
                 const [name, domain] = displayEmail.split("@");
                 displayEmail = `${name.charAt(0)}****@${domain}`;
             }
-            io.emit("new-pulse", {
+            // 🛡️ 1. Private Pulse: Full data only for the owner
+            io.to(userId).emit("new-pulse", {
                 id: newActivity.id,
                 userId: newActivity.userId,
                 event: newActivity.event,
                 timestamp: newActivity.createdAt.toISOString(),
                 userEmail: displayEmail,
                 metadata: newActivity.metadata,
-                isOwner: false // Frontend will determine this
+                isOwner: false // Frontend determines this
             });
-            // Clear Redis cache to ensure real-time dashboard updates
+            // 🎉 2. Public Pulse: Anonymized social proof for the whole community
+            if (["PLAN_UPGRADE", "USER_SIGNUP"].includes(newActivity.event)) {
+                io.emit("community-pulse", {
+                    event: newActivity.event,
+                    message: newActivity.event === "USER_SIGNUP"
+                        ? "A new founder just joined the pulse! 🚀"
+                        : "Someone just upgraded to PRO! 🔥"
+                });
+            }
+            // Clear Redis cache for the specific user
             await (0, redis_1.invalidateCache)(`user-stats:${userId}`);
-            await (0, redis_1.invalidateCache)(`admin-stats:overall`);
+            // Only clear Admin Stats for high-level plan changes (Optimization)
+            if (["PLAN_UPGRADE", "CHURN", "SUBSCRIPTION_CANCELLED"].includes(newActivity.event)) {
+                await (0, redis_1.invalidateCache)(`admin-stats:overall`);
+            }
         }
         catch (err) {
             console.error("[SOCKET/CACHE] Failed to emit event or invalidate cache:", err);
         }
         // Bonus feature: If it's a paid event, we could also theoretically update the MRR or Subscription tables here,
         // but for the basic "Pulse", we just ingest it as an activity to display on the dashboard stream.
+        // Finalize state update if this was a new plan upgrade
+        const pendingUpdate = req.pendingPlanUpdate;
+        if (pendingUpdate) {
+            await redis_2.default.setEx(pendingUpdate.key, 2592000, pendingUpdate.plan); // 30 days
+        }
         res.status(201).json({
             success: true,
             message: "Pulse received",

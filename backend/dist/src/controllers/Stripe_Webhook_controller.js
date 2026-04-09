@@ -67,6 +67,12 @@ const stripeWebhook = async (req, res) => {
                     console.warn("[STRIPE WEBHOOK] Socket notify failed (ignoring):", ioErr);
                 }
                 console.log(`[STRIPE] Database updated successfully for user ${userId}`);
+                // Final Step: Invalidate cache so dashboard and API limits are fresh
+                const { invalidateCache } = require("../utils/redis");
+                await invalidateCache(`user-stats:${userId}`);
+                await invalidateCache(`user-plan:${userId}`);
+                await invalidateCache(`usage:count:${userId}:*`); // 🚀 UNLOCK API LIMITS INSTANTLY
+                await invalidateCache("admin-stats:overall");
             }
             catch (dbError) {
                 console.error(`[STRIPE] Database update failed for user ${userId}:`, dbError);
@@ -104,6 +110,14 @@ const stripeWebhook = async (req, res) => {
                         mrr: subStatus === "ACTIVE" ? newMrr : 0,
                     },
                 });
+                // Invalidate cache for all affected users
+                const { invalidateCache } = require("../utils/redis");
+                for (const sub of affectedSubscriptions) {
+                    await invalidateCache(`user-stats:${sub.userId}`);
+                    await invalidateCache(`user-plan:${sub.userId}`); // Sync plans
+                    await invalidateCache(`usage:count:${sub.userId}:*`); // 🚀 SYNC LIMITS INSTANTLY
+                }
+                await invalidateCache("admin-stats:overall");
                 // Notify affected users via sockets
                 try {
                     const { getIO } = require("../utils/socket");

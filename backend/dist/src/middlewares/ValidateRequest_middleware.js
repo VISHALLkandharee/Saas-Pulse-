@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.loginSchema = exports.registerSchema = exports.validateSchema = void 0;
+exports.waitlistSchema = exports.loginSchema = exports.registerSchema = exports.validateSchema = void 0;
 const zod_1 = require("zod");
 const validateSchema = (schema) => (req, res, next) => {
     const result = schema.safeParse(req.body);
@@ -36,4 +36,7 @@ exports.loginSchema = zod_1.z.object({
     password: zod_1.z
         .string()
         .min(6, { message: "Password must be at least 6 characters long" }),
+});
+exports.waitlistSchema = zod_1.z.object({
+    email: zod_1.z.string().email({ message: "Join our waitlist with a valid email!" }),
 });

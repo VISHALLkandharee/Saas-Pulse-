@@ -11,13 +11,25 @@ const allowedOrigins = [
 const initSocket = (server) => {
     io = new socket_io_1.Server(server, {
         cors: {
-            origin: allowedOrigins,
+            origin: (origin, callback) => {
+                if (!origin)
+                    return callback(null, true);
+                if (allowedOrigins.includes(origin)) {
+                    return callback(null, true);
+                }
+                return callback(new Error("Not allowed by CORS"));
+            },
             methods: ["GET", "POST"],
             credentials: true
-        }
+        },
+        transports: ["websocket", "polling"],
     });
     io.on("connection", (socket) => {
-        console.log(`[SOCKET] Client connected: ${socket.id}`);
+        const userId = socket.handshake.query.userId;
+        if (userId && typeof userId === 'string') {
+            socket.join(userId);
+            console.log(`[SOCKET] User ${userId} joined private room: ${socket.id}`);
+        }
         socket.on("disconnect", () => {
             console.log(`[SOCKET] Client disconnected: ${socket.id}`);
         });
