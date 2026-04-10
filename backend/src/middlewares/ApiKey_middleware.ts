@@ -30,7 +30,11 @@ export const verifyApiKey = async (req: Request, res: Response, next: NextFuncti
 
     // 2. Check Redis for Subscription Plan (Tier)
     const planCacheKey = `user-plan:${authData.userId}`;
-    let plan = await redisClient.get(planCacheKey);
+    let plan: string | null = null;
+    
+    try {
+      if (redisClient.isReady) plan = await redisClient.get(planCacheKey);
+    } catch(e) {}
 
     if (!plan) {
       const sub = await prisma.subscription.findUnique({
@@ -38,12 +42,18 @@ export const verifyApiKey = async (req: Request, res: Response, next: NextFuncti
         select: { plan: true }
       });
       plan = sub?.plan || "FREE";
-      await redisClient.setEx(planCacheKey, 3600, plan);
+      try {
+        if (redisClient.isReady) await redisClient.setEx(planCacheKey, 3600, plan);
+      } catch(e) {}
     }
 
     // 3. Performance: Throttled 'lastUsed' update (Once every 5 mins)
     const throttleKey = `auth:lastused:${authData.keyId}`;
-    const isThrottled = await redisClient.get(throttleKey);
+    let isThrottled: string | null = null;
+    
+    try {
+      if (redisClient.isReady) isThrottled = await redisClient.get(throttleKey);
+    } catch(e) {}
     
     if (!isThrottled) {
       // Background update (don't await)
@@ -53,7 +63,9 @@ export const verifyApiKey = async (req: Request, res: Response, next: NextFuncti
       }).catch(() => {});
       
       // Set throttle flag for 5 minutes
-      await redisClient.setEx(throttleKey, 300, "1");
+      try {
+        if (redisClient.isReady) await redisClient.setEx(throttleKey, 300, "1");
+      } catch(e) {}
     }
 
     // 5. Attach context for downstream logic (Rate limiter & Usage counters)

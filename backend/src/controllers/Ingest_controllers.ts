@@ -31,9 +31,12 @@ export const ingestEvent = async (req: Request, res: Response) => {
       const usageKey = `usage:count:${userId}:${monthKey}`;
 
       // 1. Get current count from Redis
-      let currentUsage = await redisClient.get(usageKey);
+      let currentUsageStr: string | null = null;
+      try {
+        if (redisClient.isReady) currentUsageStr = await redisClient.get(usageKey);
+      } catch (e) {}
 
-      if (currentUsage === null) {
+      if (currentUsageStr === null) {
         // 2. Cache Miss: Warm up from Database
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const dbCount = await prisma.activity.count({
@@ -46,12 +49,17 @@ export const ingestEvent = async (req: Request, res: Response) => {
           }
         });
         
-        await redisClient.setEx(usageKey, 2592000, String(dbCount)); // 30 days
-        currentUsage = String(dbCount);
+        try {
+          if (redisClient.isReady) await redisClient.setEx(usageKey, 2592000, String(dbCount)); // 30 days
+        } catch (e) {}
+        currentUsageStr = String(dbCount);
       }
 
       // 3. Atomically increment and check
-      const newUsage = await redisClient.incr(usageKey);
+      let newUsage = parseInt(currentUsageStr) + 1; // Default memory increment
+      try {
+        if (redisClient.isReady) newUsage = await redisClient.incr(usageKey);
+      } catch (e) {}
 
       if (newUsage > limit) {
         return res.status(402).json({ 
