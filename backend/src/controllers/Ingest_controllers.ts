@@ -84,7 +84,13 @@ export const ingestEvent = async (req: Request, res: Response) => {
         const stateKey = `customer:plan:${userId}:${custId}`;
 
         if (isUpgrade && targetPlan) {
-          const currentPlan = await redisClient.get(stateKey);
+          let currentPlan: string | null = null;
+          try {
+            if (redisClient.isReady) currentPlan = await redisClient.get(stateKey);
+          } catch (e) {
+            console.warn("[INGEST] Redis state check failed, allowing pulse to proceed.");
+          }
+
           if (currentPlan === String(targetPlan).toLowerCase()) {
             return res.status(409).json({
               success: false,
@@ -185,7 +191,13 @@ export const ingestEvent = async (req: Request, res: Response) => {
     // Finalize state update if this was a new plan upgrade
     const pendingUpdate = (req as any).pendingPlanUpdate;
     if (pendingUpdate) {
-      await redisClient.setEx(pendingUpdate.key, 2592000, pendingUpdate.plan); // 30 days
+      try {
+        if (redisClient.isReady) {
+          await redisClient.setEx(pendingUpdate.key, 2592000, pendingUpdate.plan); // 30 days
+        }
+      } catch (e) {
+        console.warn("[INGEST] Final state update failed, pulse was still successful.");
+      }
     }
 
     res.status(201).json({
