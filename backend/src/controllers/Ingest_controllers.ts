@@ -71,7 +71,6 @@ export const ingestEvent = async (req: Request, res: Response) => {
     }
 
     // --- STATEFUL GATEKEEPER START ---
-    // Prevent duplicate upgrades and manage customer plan lifecycle
     const isUpgrade = String(event).toUpperCase() === "PLAN_UPGRADE";
     const isCancellation = ["SUBSCRIPTION_CANCELLED", "CHURN"].includes(String(event).toUpperCase());
 
@@ -85,10 +84,40 @@ export const ingestEvent = async (req: Request, res: Response) => {
 
         if (isUpgrade && targetPlan) {
           let currentPlan: string | null = null;
+          
+          // 1. Fast Cache Check (Redis)
           try {
             if (redisClient.isReady) currentPlan = await redisClient.get(stateKey);
           } catch (e) {
-            console.warn("[INGEST] Redis state check failed, allowing pulse to proceed.");
+             console.log("[GATEKEEPER] Cache unavailable, using Deep SQL fallback.");
+          }
+
+          // 2. Iron-Clad DB Check (Only if Redis is missing data or offline)
+          if (!currentPlan) {
+            const lastLifecyclePulse = await prisma.activity.findFirst({
+              where: { 
+                userId, 
+                event: { in: ["PLAN_UPGRADE", "SUBSCRIPTION_CANCELLED", "CHURN"] },
+                OR: [
+                  { metadata: { path: ["customer"], equals: custId } },
+                  { metadata: { path: ["customerId"], equals: custId } },
+                  { metadata: { path: ["email"], equals: custId } },
+                  { metadata: { path: ["userId"], equals: custId } }
+                ]
+              },
+              orderBy: { createdAt: 'desc' }
+            });
+            
+            if (lastLifecyclePulse) {
+              const meta = lastLifecyclePulse.metadata as any;
+              const isCancellation = ["SUBSCRIPTION_CANCELLED", "CHURN"].includes(lastLifecyclePulse.event);
+              currentPlan = isCancellation ? "free" : String(meta.plan || meta.name || "").toLowerCase();
+              
+              // Warm cache if Redis is back up
+              try {
+                if (redisClient.isReady) await redisClient.setEx(stateKey, 2592000, currentPlan);
+              } catch (e) {}
+            }
           }
 
           if (currentPlan === String(targetPlan).toLowerCase()) {

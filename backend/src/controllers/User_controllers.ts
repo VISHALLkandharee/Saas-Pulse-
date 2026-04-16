@@ -27,9 +27,9 @@ const registerUser = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "User already exists with this email" });
     }
 
-    // Determine role — compare securely to avoid undefined === undefined match
+    // Determine role — compare securely to avoid accidental matches if ENV is missing
     let role: "USER" | "ADMIN" = "USER";
-    if (adminId && process.env.ADMIN_ID && adminId === process.env.ADMIN_ID) {
+    if (process.env.ADMIN_ID && adminId === process.env.ADMIN_ID) {
       role = "ADMIN";
     }
 
