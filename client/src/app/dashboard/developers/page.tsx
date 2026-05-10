@@ -213,7 +213,7 @@ export default function DevelopersPage() {
                 <div className="relative group">
                   <button 
                     onClick={() => {
-                      const code = `fetch('${(process.env.NEXT_PUBLIC_RAILWAY_URL || 'https://saas-pulse-production.up.railway.app')}/api/v1/event', {
+                      const code = `fetch('${(process.env.NEXT_PUBLIC_RAILWAY_URL || 'https://saas-pulse-production-b0d5.up.railway.app')}/api/v1/event', {
   method: 'POST',
   headers: {
     'x-api-key': '${keys[0]?.key || 'YOUR_SP_KEY'}',
@@ -240,7 +240,7 @@ export default function DevelopersPage() {
                   >
                     Copy
                   </button>
-                  <div className="text-emerald-500/70">{`fetch('${(process.env.NEXT_PUBLIC_RAILWAY_URL || 'https://saas-pulse-production.up.railway.app')}/api/v1/event', {`}</div>
+                  <div className="text-emerald-500/70">{`fetch('${(process.env.NEXT_PUBLIC_RAILWAY_URL || 'https://saas-pulse-production-b0d5.up.railway.app')}/api/v1/event', {`}</div>
                   <div className="pl-4 text-zinc-400">{`method: 'POST',`}</div>
                   <div className="pl-4 text-zinc-400">{`headers: {`}</div>
                   <div className="pl-8 text-emerald-400">{`'x-api-key': '${keys[0]?.key || 'YOUR_SP_KEY'}',`}</div>
