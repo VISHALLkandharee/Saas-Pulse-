@@ -2,18 +2,18 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
-import { 
-  ArrowLeft, 
-  Key, 
-  Plus, 
-  Trash2, 
-  Copy, 
-  Check, 
-  Terminal, 
-  Code2, 
+import {
+  ArrowLeft,
+  Key,
+  Plus,
+  Trash2,
+  Copy,
+  Check,
+  Terminal,
+  Code2,
   ShieldAlert,
   Puzzle,
-  Zap
+  Zap,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -52,7 +52,9 @@ export default function DevelopersPage() {
   const handleGenerate = async () => {
     try {
       setIsCreating(true);
-      await api.post("/keys/generate", { name: newKeyName || "Production Key" });
+      await api.post("/keys/generate", {
+        name: newKeyName || "Production Key",
+      });
       setNewKeyName("");
       fetchKeys();
     } catch (error) {
@@ -63,7 +65,8 @@ export default function DevelopersPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure? This will immediately invalidate this key!")) return;
+    if (!confirm("Are you sure? This will immediately invalidate this key!"))
+      return;
     try {
       await api.delete(`/keys/${id}`);
       fetchKeys();
@@ -78,21 +81,23 @@ export default function DevelopersPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  if (loading) return (
-    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center gap-4">
-      <div className="w-8 h-8 border-4 border-zinc-800 border-t-white rounded-full animate-spin"></div>
-      <p className="text-zinc-500 animate-pulse text-sm">Initializing Developer Vault...</p>
-    </div>
-  );
+  if (loading)
+    return (
+      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center gap-4">
+        <div className="w-8 h-8 border-4 border-zinc-800 border-t-white rounded-full animate-spin"></div>
+        <p className="text-zinc-500 animate-pulse text-sm">
+          Initializing Developer Vault...
+        </p>
+      </div>
+    );
 
   return (
     <div className="min-h-screen bg-[#050505] text-white p-8 font-[family-name:var(--font-geist-sans)]">
       <div className="max-w-5xl mx-auto space-y-12">
-        
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button 
+            <button
               onClick={() => router.push("/dashboard")}
               className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400"
             >
@@ -103,16 +108,16 @@ export default function DevelopersPage() {
                 <Code2 className="text-emerald-500" />
                 Developer Influx
               </h1>
-              <p className="text-zinc-500 text-sm mt-1">Generate API keys to pipe real-time events into your Pulse.</p>
+              <p className="text-zinc-500 text-sm mt-1">
+                Generate API keys to pipe real-time events into your Pulse.
+              </p>
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
           {/* Main Content: Key Management */}
           <div className="lg:col-span-2 space-y-6">
-            
             {/* Create New Key */}
             <div className="bg-zinc-900/40 border border-zinc-800 p-6 rounded-2xl backdrop-blur-md shadow-xl border-dashed border-2 hover:border-zinc-700 transition-all">
               <div className="flex flex-col gap-4">
@@ -123,19 +128,23 @@ export default function DevelopersPage() {
                   <h2 className="text-lg font-bold">New Pulse Connection</h2>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <input 
+                  <input
                     type="text"
                     value={newKeyName}
                     onChange={(e) => setNewKeyName(e.target.value)}
                     placeholder="e.g. My Next.js SaaS Production"
                     className="flex-1 bg-zinc-950/50 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all w-full"
                   />
-                  <button 
+                  <button
                     onClick={handleGenerate}
                     disabled={isCreating}
                     className="bg-white text-black px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-zinc-200 transition-all disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap shadow-lg shadow-white/5 w-full sm:w-auto"
                   >
-                    {isCreating ? <div className="w-4 h-4 border-2 border-zinc-400 border-t-black rounded-full animate-spin" /> : <Plus size={18} />}
+                    {isCreating ? (
+                      <div className="w-4 h-4 border-2 border-zinc-400 border-t-black rounded-full animate-spin" />
+                    ) : (
+                      <Plus size={18} />
+                    )}
                     Generate Key
                   </button>
                 </div>
@@ -144,10 +153,12 @@ export default function DevelopersPage() {
 
             {/* Keys List */}
             <div className="space-y-4">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-500 ml-1">Active Integration Keys</h3>
+              <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-500 ml-1">
+                Active Integration Keys
+              </h3>
               <AnimatePresence mode="popLayout">
                 {keys.map((key, idx) => (
-                  <motion.div 
+                  <motion.div
                     key={key.id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -157,7 +168,9 @@ export default function DevelopersPage() {
                   >
                     <div className="space-y-3 w-full sm:flex-1">
                       <div className="flex flex-col xs:flex-row xs:items-center gap-2">
-                        <span className="font-bold text-zinc-200 truncate">{key.name}</span>
+                        <span className="font-bold text-zinc-200 truncate">
+                          {key.name}
+                        </span>
                         <span className="text-[9px] bg-zinc-800/50 px-2 py-0.5 rounded text-zinc-500 font-mono w-fit border border-zinc-800/50">
                           {new Date(key.createdAt).toLocaleDateString()}
                         </span>
@@ -166,16 +179,20 @@ export default function DevelopersPage() {
                         <div className="bg-zinc-950 border border-zinc-800 px-3 py-2 rounded-xl font-mono text-xs text-emerald-500/80 flex-1 truncate select-all">
                           {key.key}
                         </div>
-                        <button 
+                        <button
                           onClick={() => copyToClipboard(key.key, key.id)}
                           className="p-2.5 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 rounded-xl text-zinc-500 hover:text-white transition-all shadow-sm shrink-0"
                           title="Copy Key"
                         >
-                          {copiedId === key.id ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
+                          {copiedId === key.id ? (
+                            <Check size={16} className="text-emerald-500" />
+                          ) : (
+                            <Copy size={16} />
+                          )}
                         </button>
                       </div>
                     </div>
-                    <button 
+                    <button
                       onClick={() => handleDelete(key.id)}
                       className="p-2.5 text-zinc-600 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all sm:opacity-0 group-hover:opacity-100 self-end sm:self-center border border-transparent hover:border-rose-500/20"
                       title="Revoke Key"
@@ -198,12 +215,14 @@ export default function DevelopersPage() {
             <div className="bg-zinc-900/80 border border-zinc-800 p-6 rounded-3xl space-y-4 shadow-2xl">
               <div className="flex items-center gap-2 text-emerald-400 mb-2">
                 <Puzzle size={18} />
-                <span className="text-xs font-bold uppercase tracking-widest">Quick Setup</span>
+                <span className="text-xs font-bold uppercase tracking-widest">
+                  Quick Setup
+                </span>
               </div>
               <p className="text-sm text-zinc-400 leading-relaxed">
                 Paste this into your backend to track an event.
               </p>
-              
+
               <div className="bg-zinc-950 rounded-2xl p-4 border border-zinc-800/50 font-mono text-[11px] text-zinc-400 space-y-2 overflow-x-auto">
                 <div className="flex items-center justify-between border-b border-zinc-800 pb-2 mb-2">
                   <span className="text-zinc-600">POST /api/v1/event</span>
@@ -211,12 +230,12 @@ export default function DevelopersPage() {
                 </div>
                 {/* The actual fetch snippet code */}
                 <div className="relative group">
-                  <button 
+                  <button
                     onClick={() => {
-                      const code = `fetch('${(process.env.NEXT_PUBLIC_RAILWAY_URL || 'https://saas-pulse-production-b0d5.up.railway.app')}/api/v1/event', {
+                      const code = `fetch('${process.env.NEXT_PUBLIC_RAILWAY_URL || "https://saas-pulse-production-6d2d.up.railway.app"}/api/v1/event', {
   method: 'POST',
   headers: {
-    'x-api-key': '${keys[0]?.key || 'YOUR_SP_KEY'}',
+    'x-api-key': '${keys[0]?.key || "YOUR_SP_KEY"}',
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({
@@ -229,10 +248,10 @@ export default function DevelopersPage() {
   })
 });`;
                       navigator.clipboard.writeText(code);
-                      const btn = document.getElementById('copy-setup-btn');
+                      const btn = document.getElementById("copy-setup-btn");
                       if (btn) {
-                        btn.innerText = 'Copied!';
-                        setTimeout(() => btn.innerText = 'Copy', 2000);
+                        btn.innerText = "Copied!";
+                        setTimeout(() => (btn.innerText = "Copy"), 2000);
                       }
                     }}
                     id="copy-setup-btn"
@@ -240,10 +259,10 @@ export default function DevelopersPage() {
                   >
                     Copy
                   </button>
-                  <div className="text-emerald-500/70">{`fetch('${(process.env.NEXT_PUBLIC_RAILWAY_URL || 'https://saas-pulse-production-b0d5.up.railway.app')}/api/v1/event', {`}</div>
+                  <div className="text-emerald-500/70">{`fetch('${process.env.NEXT_PUBLIC_RAILWAY_URL || "https://saas-pulse-production-b0d5.up.railway.app"}/api/v1/event', {`}</div>
                   <div className="pl-4 text-zinc-400">{`method: 'POST',`}</div>
                   <div className="pl-4 text-zinc-400">{`headers: {`}</div>
-                  <div className="pl-8 text-emerald-400">{`'x-api-key': '${keys[0]?.key || 'YOUR_SP_KEY'}',`}</div>
+                  <div className="pl-8 text-emerald-400">{`'x-api-key': '${keys[0]?.key || "YOUR_SP_KEY"}',`}</div>
                   <div className="pl-8 text-zinc-400">{`'Content-Type': 'application/json'`}</div>
                   <div className="pl-4 text-zinc-400">{`},`}</div>
                   <div className="pl-4 text-zinc-400">{`body: JSON.stringify({`}</div>
@@ -255,16 +274,20 @@ export default function DevelopersPage() {
               </div>
 
               <div className="pt-4 border-t border-zinc-800 mt-4 flex items-start gap-3">
-                <ShieldAlert size={16} className="text-rose-500 shrink-0 mt-0.5" />
+                <ShieldAlert
+                  size={16}
+                  className="text-rose-500 shrink-0 mt-0.5"
+                />
                 <p className="text-[10px] text-zinc-500 italic leading-tight">
-                  Always keep your keys secret. Never expose them in your frontend code. Pulse responsibly.
+                  Always keep your keys secret. Never expose them in your
+                  frontend code. Pulse responsibly.
                 </p>
               </div>
             </div>
 
             <div className="p-8 bg-zinc-950 border border-zinc-900 rounded-[2.5rem] relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-[80px] -mr-32 -mt-32 rounded-full" />
-              
+
               <div className="relative">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="bg-amber-500/10 p-2 rounded-xl text-amber-500">
@@ -274,28 +297,36 @@ export default function DevelopersPage() {
                 </div>
 
                 <p className="text-sm text-zinc-500 mb-8 max-w-lg leading-relaxed">
-                  Your dashboard automatically calculates growth based on specific keys in your <code className="text-zinc-300">metadata</code> object.
+                  Your dashboard automatically calculates growth based on
+                  specific keys in your{" "}
+                  <code className="text-zinc-300">metadata</code> object.
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {/* Revenue Tracking */}
                   <div className="space-y-4">
                     <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                       Revenue Tracking
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      Revenue Tracking
                     </h4>
                     <ul className="space-y-3">
                       <li className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
                         <code className="text-emerald-400 text-xs">mrr</code>
-                        <span className="text-[10px] text-zinc-500">Monthly Recurring Revenue</span>
+                        <span className="text-[10px] text-zinc-500">
+                          Monthly Recurring Revenue
+                        </span>
                       </li>
                       <li className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
                         <code className="text-emerald-400 text-xs">amount</code>
-                        <span className="text-[10px] text-zinc-500">Transaction Value</span>
+                        <span className="text-[10px] text-zinc-500">
+                          Transaction Value
+                        </span>
                       </li>
                       <li className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
                         <code className="text-emerald-400 text-xs">value</code>
-                        <span className="text-[10px] text-zinc-500">General Numeric Worth</span>
+                        <span className="text-[10px] text-zinc-500">
+                          General Numeric Worth
+                        </span>
                       </li>
                     </ul>
                   </div>
@@ -303,60 +334,92 @@ export default function DevelopersPage() {
                   {/* Identity Tracking */}
                   <div className="space-y-4">
                     <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                       <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                       Identity Tracking
+                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                      Identity Tracking
                     </h4>
                     <ul className="space-y-3">
                       <li className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
-                        <code className="text-indigo-400 text-xs">customer</code>
-                        <span className="text-[10px] text-zinc-500">Full Name or Alias</span>
+                        <code className="text-indigo-400 text-xs">
+                          customer
+                        </code>
+                        <span className="text-[10px] text-zinc-500">
+                          Full Name or Alias
+                        </span>
                       </li>
                       <li className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
-                        <code className="text-indigo-400 text-xs">customerId</code>
-                        <span className="text-[10px] text-zinc-500">Unique Database ID</span>
+                        <code className="text-indigo-400 text-xs">
+                          customerId
+                        </code>
+                        <span className="text-[10px] text-zinc-500">
+                          Unique Database ID
+                        </span>
                       </li>
                       <li className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
                         <code className="text-indigo-400 text-xs">email</code>
-                        <span className="text-[10px] text-zinc-500">Direct Contact Address</span>
+                        <span className="text-[10px] text-zinc-500">
+                          Direct Contact Address
+                        </span>
                       </li>
                     </ul>
                   </div>
                 </div>
 
-
-
                 <div className="mt-8 border-t border-zinc-900 pt-8">
                   <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2 mb-6">
-                     <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
-                     API Response Codes
+                    <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
+                    API Response Codes
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="p-4 bg-zinc-900/40 border border-zinc-800/50 rounded-2xl flex items-start gap-3">
-                      <div className="text-emerald-500 font-mono text-xs font-bold pt-0.5">201</div>
+                      <div className="text-emerald-500 font-mono text-xs font-bold pt-0.5">
+                        201
+                      </div>
                       <div className="space-y-1">
-                        <div className="text-xs font-bold text-zinc-300">Pulse Ingested</div>
-                        <div className="text-[10px] text-zinc-500">Everything is perfect. Pulse is live.</div>
+                        <div className="text-xs font-bold text-zinc-300">
+                          Pulse Ingested
+                        </div>
+                        <div className="text-[10px] text-zinc-500">
+                          Everything is perfect. Pulse is live.
+                        </div>
                       </div>
                     </div>
                     <div className="p-4 bg-zinc-900/40 border border-zinc-800/50 rounded-2xl flex items-start gap-3">
-                      <div className="text-amber-500 font-mono text-xs font-bold pt-0.5">402</div>
+                      <div className="text-amber-500 font-mono text-xs font-bold pt-0.5">
+                        402
+                      </div>
                       <div className="space-y-1">
-                        <div className="text-xs font-bold text-zinc-300">Limit Reached</div>
-                        <div className="text-[10px] text-zinc-500">Upgrade your SaaS Pulse plan.</div>
+                        <div className="text-xs font-bold text-zinc-300">
+                          Limit Reached
+                        </div>
+                        <div className="text-[10px] text-zinc-500">
+                          Upgrade your SaaS Pulse plan.
+                        </div>
                       </div>
                     </div>
                     <div className="p-4 bg-zinc-900/40 border border-zinc-800/50 rounded-2xl flex items-start gap-3 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.03)]">
-                      <div className="text-indigo-500 font-mono text-xs font-bold pt-0.5">409</div>
+                      <div className="text-indigo-500 font-mono text-xs font-bold pt-0.5">
+                        409
+                      </div>
                       <div className="space-y-1">
-                        <div className="text-xs font-bold text-zinc-300">State Conflict</div>
-                        <div className="text-[10px] text-zinc-500 italic">User is already on this plan. Don't charge again.</div>
+                        <div className="text-xs font-bold text-zinc-300">
+                          State Conflict
+                        </div>
+                        <div className="text-[10px] text-zinc-500 italic">
+                          User is already on this plan. Don't charge again.
+                        </div>
                       </div>
                     </div>
                     <div className="p-4 bg-zinc-900/40 border border-zinc-800/50 rounded-2xl flex items-start gap-3">
-                      <div className="text-rose-500 font-mono text-xs font-bold pt-0.5">400</div>
+                      <div className="text-rose-500 font-mono text-xs font-bold pt-0.5">
+                        400
+                      </div>
                       <div className="space-y-1">
-                        <div className="text-xs font-bold text-zinc-300">Bad Request</div>
-                        <div className="text-[10px] text-zinc-500">Missing 'event' or malformed JSON.</div>
+                        <div className="text-xs font-bold text-zinc-300">
+                          Bad Request
+                        </div>
+                        <div className="text-[10px] text-zinc-500">
+                          Missing 'event' or malformed JSON.
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -364,7 +427,12 @@ export default function DevelopersPage() {
 
                 <div className="mt-8 p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
                   <p className="text-[11px] text-zinc-400 leading-relaxed italic">
-                    💡 <span className="text-emerald-500 font-bold">Pro Tip:</span> Always send at least one <strong>Identity key</strong> with every pulse. This ensures your "Active Customers" count stays perfectly accurate even if your users are making thousands of requests.
+                    💡{" "}
+                    <span className="text-emerald-500 font-bold">Pro Tip:</span>{" "}
+                    Always send at least one <strong>Identity key</strong> with
+                    every pulse. This ensures your "Active Customers" count
+                    stays perfectly accurate even if your users are making
+                    thousands of requests.
                   </p>
                 </div>
               </div>
@@ -376,12 +444,12 @@ export default function DevelopersPage() {
                 SDK coming soon
               </h4>
               <p className="text-xs text-zinc-500">
-                We&apos;re building a dedicated library for Node.js, Go, and Python. Stay tuned!
+                We&apos;re building a dedicated library for Node.js, Go, and
+                Python. Stay tuned!
               </p>
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
