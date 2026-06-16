@@ -13,12 +13,16 @@ Quick highlights
 - Built with Next.js (client) and Node.js + TypeScript (backend)
 
 Screenshots / Quick demo
-- Screenshot 1 — connection failure view: assets/Screenshot (253).png
-- Screenshot 2 — connection failure (alternate): assets/Screenshot (254).png
-- Screenshot 3 — successful Supabase connection: assets/Screenshot (255).png
-- Screenshot 4 — developer view / package.json: assets/Screenshot (256).png
 
-(These images are included in /assets/ — filenames contain spaces; GitHub will render them.)
+![Screenshot 1 — connection failure view](assets/Screenshot%20(253).png)
+
+![Screenshot 2 — connection failure (alternate)](assets/Screenshot%20(254).png)
+
+![Screenshot 3 — successful Supabase connection](assets/Screenshot%20(255).png)
+
+![Screenshot 4 — developer view / package.json](assets/Screenshot%20(256).png)
+
+(Images are stored in /assets/; filenames currently contain spaces which GitHub renders, but I recommend renaming them to URL-friendly names.)
 
 Quick start (fastest path)
 1. Clone:
