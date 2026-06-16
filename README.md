@@ -22,7 +22,7 @@ Screenshots / Quick demo
 
 ![Screenshot 4 — developer view / package.json](assets/Screenshot%20(256).png)
 
-(Images are stored in /assets/; filenames currently contain spaces which GitHub renders, but I recommend renaming them to URL-friendly names.)
+(Images are stored in /assets/ using their original filenames.)
 
 Quick start (fastest path)
 1. Clone:
