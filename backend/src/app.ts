@@ -38,6 +38,7 @@ app.use(helmet());
 const allowedOrigins = [
   "http://localhost:3000", 
   "http://192.168.10.23:3000",
+  "https://saas-pulse.vishallkumar.com/"
   process.env.CLIENT_URL, // Allows production domains
 ].filter(Boolean) as string[];
 
