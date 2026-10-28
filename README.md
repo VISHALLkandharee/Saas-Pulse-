@@ -89,6 +89,9 @@ Saas-Pulse-/
 Environment variables (examples)
 # Backend (.env)
 DATABASE_URL=postgresql://user:password@host:5432/saas_pulse
+# For private/self-signed database certificates, set DATABASE_CA_CERT to the
+# provider's trusted root CA PEM in the backend deployment environment.
+DATABASE_CA_CERT="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=your_jwt_secret
 STRIPE_SECRET_KEY=sk_test_...
