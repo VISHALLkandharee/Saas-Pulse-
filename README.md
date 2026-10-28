@@ -1,7 +1,7 @@
 # SaaS Pulse — Real‑Time Business Intelligence Engine
 
-Live demo: https://saas-pulse-liart.vercel.app/
-Contact: vishall.kandharee@gmail.com
+Live demo:https://saas-pulse.vishallkumar.com
+Contact: vk@vishallkumar.com
 
 One-line summary
 A production-ready event-driven app that ingests business events and provides real-time MRR, churn, usage signals, and founder alerts through a dashboard and ingestion API.
