@@ -232,7 +232,7 @@ export default function DevelopersPage() {
                 <div className="relative group">
                   <button
                     onClick={() => {
-                      const code = `fetch('${process.env.NEXT_PUBLIC_RAILWAY_URL || "https://saas-pulse-production-6d2d.up.railway.app"}/api/v1/event', {
+                      const code = `fetch('${process.env.NEXT_PUBLIC_RAILWAY_URL || "https://saas-pulse-production-1410.up.railway.app"}/api/v1/event', {
   method: 'POST',
   headers: {
     'x-api-key': '${keys[0]?.key || "YOUR_SP_KEY"}',

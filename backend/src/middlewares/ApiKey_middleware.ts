@@ -1,7 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import prisma from "../utils/prisma";
-import { getCache, setCache } from "../utils/redis";
 import redisClient from "../utils/redis";
+import crypto from "crypto";
+
+const hashApiKey = (key: string) =>
+  crypto.createHash("sha256").update(key).digest("hex");
 
 export const verifyApiKey = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -11,22 +14,32 @@ export const verifyApiKey = async (req: Request, res: Response, next: NextFuncti
       return res.status(401).json({ success: false, message: "Missing API Key" });
     }
 
-    // 1. Check Redis for API Key (Auth)
-    const authCacheKey = `auth:key:${apiKeyHeader}`;
-    let authData = await getCache(authCacheKey);
+    // Query by a one-way digest. Authentication is deliberately not cached: a
+    // deleted key must stop working immediately, not after a cache TTL.
+    const apiKeyHash = hashApiKey(apiKeyHeader);
+    let apiKey = await prisma.apiKey.findUnique({ where: { keyHash: apiKeyHash } });
 
-    if (!authData) {
-      const apiKey = await prisma.apiKey.findUnique({
-        where: { key: apiKeyHeader },
-      });
-
-      if (!apiKey) {
-        return res.status(401).json({ success: false, message: "Invalid API Key" });
+    // Transition path for keys issued before hashing was introduced. A valid
+    // legacy key is upgraded atomically on its first successful use.
+    if (!apiKey) {
+      apiKey = await prisma.apiKey.findUnique({ where: { key: apiKeyHeader } });
+      if (apiKey) {
+        apiKey = await prisma.apiKey.update({
+          where: { id: apiKey.id },
+          data: {
+            key: null,
+            keyHash: apiKeyHash,
+            prefix: apiKeyHeader.slice(0, 11),
+            last4: apiKeyHeader.slice(-4),
+          },
+        });
       }
-
-      authData = { userId: apiKey.userId, keyId: apiKey.id };
-      await setCache(authCacheKey, authData, 3600);
     }
+
+    if (!apiKey) {
+      return res.status(401).json({ success: false, message: "Invalid API Key" });
+    }
+    const authData = { userId: apiKey.userId, keyId: apiKey.id };
 
     // 2. Check Redis for Subscription Plan (Tier)
     const planCacheKey = `user-plan:${authData.userId}`;

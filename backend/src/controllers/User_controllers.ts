@@ -11,7 +11,7 @@ import { EmailService } from "../services/Email_service";
 
 const registerUser = async (req: Request, res: Response) => {
   try {
-    const { name, email, password, adminId, image: imageUrl } = req.body;
+    const { name, email, password, image: imageUrl } = req.body;
     console.log(`[AUTH] Register request from origin: ${req.headers.origin}`);
 
     // Use uploaded file path (Cloudinary URL). If local, prefix with / for static serving.
@@ -27,11 +27,9 @@ const registerUser = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "User already exists with this email" });
     }
 
-    // Determine role — compare securely to avoid accidental matches if ENV is missing
-    let role: "USER" | "ADMIN" = "USER";
-    if (process.env.ADMIN_ID && adminId === process.env.ADMIN_ID) {
-      role = "ADMIN";
-    }
+    // Privileged accounts are provisioned through controlled operations, never
+    // by a secret accepted from a public registration form.
+    const role: "USER" = "USER";
 
     const hashedPassword = await hashPassword(password);
 
