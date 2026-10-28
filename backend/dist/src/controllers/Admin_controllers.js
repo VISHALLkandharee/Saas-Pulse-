@@ -58,7 +58,7 @@ const exportSystemData = async (req, res) => {
                     select: { email: true }
                 }
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { occurredAt: 'desc' }
         });
         if (activities.length === 0) {
             return res.status(200).send("No data available for export");
@@ -66,7 +66,7 @@ const exportSystemData = async (req, res) => {
         // Generate CSV Content
         const headers = ["ID", "Timestamp", "Event", "Founder Email", "Metadata"];
         const rows = activities.map((a) => {
-            const timestamp = a.createdAt.toISOString();
+            const timestamp = a.occurredAt.toISOString();
             const event = a.event;
             const email = a.user?.email || "external@user.com";
             const meta = JSON.stringify(a.metadata).replace(/"/g, '""'); // Escape quotes for CSV

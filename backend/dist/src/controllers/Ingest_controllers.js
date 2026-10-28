@@ -45,12 +45,31 @@ const ingestEvent = async (req, res) => {
     try {
         // This userId is injected by the verifyApiKey middleware
         const userId = req.integrationUser?.userId;
-        const { event, metadata } = req.body;
-        if (!event) {
-            return res.status(400).json({ success: false, message: "Missing required 'event' field" });
+        const { event, metadata, idempotencyKey, occurredAt: occurredAtInput } = req.body;
+        if (typeof event !== "string" || !/^[A-Za-z0-9_:-]{1,64}$/.test(event)) {
+            return res.status(400).json({ success: false, message: "'event' must be a 1-64 character identifier" });
         }
         if (!userId) {
             return res.status(500).json({ success: false, message: "Integration context lost" });
+        }
+        if (metadata !== undefined && (typeof metadata !== "object" || metadata === null || Array.isArray(metadata) || JSON.stringify(metadata).length > 16000)) {
+            return res.status(400).json({ success: false, message: "'metadata' must be an object no larger than 16KB" });
+        }
+        const externalId = req.header("idempotency-key") || idempotencyKey;
+        if (typeof externalId !== "string" || externalId.length < 8 || externalId.length > 128) {
+            return res.status(400).json({ success: false, message: "Provide an Idempotency-Key (8-128 characters) for every pulse" });
+        }
+        const occurredAt = occurredAtInput ? new Date(occurredAtInput) : new Date();
+        if (Number.isNaN(occurredAt.getTime()) || occurredAt > new Date(Date.now() + 5 * 60 * 1000)) {
+            return res.status(400).json({ success: false, message: "'occurredAt' must be a valid timestamp that is not in the future" });
+        }
+        // Retries must be handled before quotas or business side effects.
+        const alreadyProcessed = await prisma_1.default.activity.findUnique({
+            where: { userId_externalId: { userId, externalId } },
+            select: { id: true },
+        });
+        if (alreadyProcessed) {
+            return res.status(200).json({ success: true, duplicate: true, message: "Pulse already processed", activityId: alreadyProcessed.id });
         }
         // Tier Enforcement: Check monthly pulse limits (Plan provided by verifyApiKey middleware)
         const plan = req.integrationUser?.plan || "FREE";
@@ -62,24 +81,38 @@ const ingestEvent = async (req, res) => {
             const monthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
             const usageKey = `usage:count:${userId}:${monthKey}`;
             // 1. Get current count from Redis
-            let currentUsage = await redis_2.default.get(usageKey);
-            if (currentUsage === null) {
+            let currentUsageStr = null;
+            try {
+                if (redis_2.default.isReady)
+                    currentUsageStr = await redis_2.default.get(usageKey);
+            }
+            catch (e) { }
+            if (currentUsageStr === null) {
                 // 2. Cache Miss: Warm up from Database
                 const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
                 const dbCount = await prisma_1.default.activity.count({
                     where: {
                         userId,
-                        createdAt: { gte: startOfMonth },
+                        occurredAt: { gte: startOfMonth },
                         NOT: {
                             event: { in: ["USER_SIGNUP", "USER_LOGIN"] }
                         }
                     }
                 });
-                await redis_2.default.setEx(usageKey, 2592000, String(dbCount)); // 30 days
-                currentUsage = String(dbCount);
+                try {
+                    if (redis_2.default.isReady)
+                        await redis_2.default.setEx(usageKey, 2592000, String(dbCount)); // 30 days
+                }
+                catch (e) { }
+                currentUsageStr = String(dbCount);
             }
             // 3. Atomically increment and check
-            const newUsage = await redis_2.default.incr(usageKey);
+            let newUsage = parseInt(currentUsageStr) + 1; // Default memory increment
+            try {
+                if (redis_2.default.isReady)
+                    newUsage = await redis_2.default.incr(usageKey);
+            }
+            catch (e) { }
             if (newUsage > limit) {
                 return res.status(402).json({
                     success: false,
@@ -89,7 +122,6 @@ const ingestEvent = async (req, res) => {
             }
         }
         // --- STATEFUL GATEKEEPER START ---
-        // Prevent duplicate upgrades and manage customer plan lifecycle
         const isUpgrade = String(event).toUpperCase() === "PLAN_UPGRADE";
         const isCancellation = ["SUBSCRIPTION_CANCELLED", "CHURN"].includes(String(event).toUpperCase());
         if (isUpgrade || isCancellation) {
@@ -99,7 +131,42 @@ const ingestEvent = async (req, res) => {
             if (custId) {
                 const stateKey = `customer:plan:${userId}:${custId}`;
                 if (isUpgrade && targetPlan) {
-                    const currentPlan = await redis_2.default.get(stateKey);
+                    let currentPlan = null;
+                    // 1. Fast Cache Check (Redis)
+                    try {
+                        if (redis_2.default.isReady)
+                            currentPlan = await redis_2.default.get(stateKey);
+                    }
+                    catch (e) {
+                        console.log("[GATEKEEPER] Cache unavailable, using Deep SQL fallback.");
+                    }
+                    // 2. Iron-Clad DB Check (Only if Redis is missing data or offline)
+                    if (!currentPlan) {
+                        const lastLifecyclePulse = await prisma_1.default.activity.findFirst({
+                            where: {
+                                userId,
+                                event: { in: ["PLAN_UPGRADE", "SUBSCRIPTION_CANCELLED", "CHURN"] },
+                                OR: [
+                                    { metadata: { path: ["customer"], equals: custId } },
+                                    { metadata: { path: ["customerId"], equals: custId } },
+                                    { metadata: { path: ["email"], equals: custId } },
+                                    { metadata: { path: ["userId"], equals: custId } }
+                                ]
+                            },
+                            orderBy: { occurredAt: 'desc' }
+                        });
+                        if (lastLifecyclePulse) {
+                            const meta = lastLifecyclePulse.metadata;
+                            const isCancellation = ["SUBSCRIPTION_CANCELLED", "CHURN"].includes(lastLifecyclePulse.event);
+                            currentPlan = isCancellation ? "free" : String(meta.plan || meta.name || "").toLowerCase();
+                            // Warm cache if Redis is back up
+                            try {
+                                if (redis_2.default.isReady)
+                                    await redis_2.default.setEx(stateKey, 2592000, currentPlan);
+                            }
+                            catch (e) { }
+                        }
+                    }
                     if (currentPlan === String(targetPlan).toLowerCase()) {
                         return res.status(409).json({
                             success: false,
@@ -116,21 +183,29 @@ const ingestEvent = async (req, res) => {
         }
         // --- STATEFUL GATEKEEPER END ---
         // Save the incoming event as an Activity belonging to the founder
-        const newActivity = await prisma_1.default.activity.create({
-            data: {
-                userId,
-                event: String(event).toUpperCase(),
-                metadata: metadata || {},
-            },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        email: true,
-                    }
-                }
+        let newActivity;
+        try {
+            newActivity = await prisma_1.default.activity.create({
+                data: {
+                    userId,
+                    event: String(event).toUpperCase(),
+                    metadata: metadata || {},
+                    externalId,
+                    occurredAt,
+                },
+                include: { user: { select: { id: true, email: true } } },
+            });
+        }
+        catch (error) {
+            if (error?.code === "P2002") {
+                const duplicate = await prisma_1.default.activity.findUnique({
+                    where: { userId_externalId: { userId, externalId } },
+                    select: { id: true },
+                });
+                return res.status(200).json({ success: true, duplicate: true, message: "Pulse already processed", activityId: duplicate?.id });
             }
-        });
+            throw error;
+        }
         // Tier Feature: Activity Alerts (PRO/ENTERPRISE)
         if (plan !== "FREE" && newActivity.user?.email) {
             const isCritical = String(event).toUpperCase().includes("CRITICAL") || metadata?.alert === true;
@@ -162,7 +237,7 @@ const ingestEvent = async (req, res) => {
                 id: newActivity.id,
                 userId: newActivity.userId,
                 event: newActivity.event,
-                timestamp: newActivity.createdAt.toISOString(),
+                timestamp: newActivity.occurredAt.toISOString(),
                 userEmail: displayEmail,
                 metadata: newActivity.metadata,
                 isOwner: false // Frontend determines this
@@ -191,7 +266,14 @@ const ingestEvent = async (req, res) => {
         // Finalize state update if this was a new plan upgrade
         const pendingUpdate = req.pendingPlanUpdate;
         if (pendingUpdate) {
-            await redis_2.default.setEx(pendingUpdate.key, 2592000, pendingUpdate.plan); // 30 days
+            try {
+                if (redis_2.default.isReady) {
+                    await redis_2.default.setEx(pendingUpdate.key, 2592000, pendingUpdate.plan); // 30 days
+                }
+            }
+            catch (e) {
+                console.warn("[INGEST] Final state update failed, pulse was still successful.");
+            }
         }
         res.status(201).json({
             success: true,

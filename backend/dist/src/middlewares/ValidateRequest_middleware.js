@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.waitlistSchema = exports.loginSchema = exports.registerSchema = exports.validateSchema = void 0;
+exports.changePasswordSchema = exports.waitlistSchema = exports.loginSchema = exports.registerSchema = exports.validateSchema = void 0;
 const zod_1 = require("zod");
 const validateSchema = (schema) => (req, res, next) => {
     const result = schema.safeParse(req.body);
@@ -35,8 +35,15 @@ exports.loginSchema = zod_1.z.object({
     email: zod_1.z.string().email({ message: "Invalid email address" }),
     password: zod_1.z
         .string()
-        .min(6, { message: "Password must be at least 6 characters long" }),
+        .min(1, { message: "Password is required" }),
 });
 exports.waitlistSchema = zod_1.z.object({
     email: zod_1.z.string().email({ message: "Join our waitlist with a valid email!" }),
+});
+exports.changePasswordSchema = zod_1.z.object({
+    currentPassword: zod_1.z.string().min(1, { message: "Current password is required" }),
+    newPassword: zod_1.z.string().min(6, { message: "New password must be at least 6 characters long" }),
+}).refine(({ currentPassword, newPassword }) => currentPassword !== newPassword, {
+    message: "New password cannot be the same as current password",
+    path: ["newPassword"],
 });

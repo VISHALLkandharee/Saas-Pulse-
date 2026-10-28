@@ -50,6 +50,19 @@ app.use((0, cors_1.default)({
     credentials: true,
 }));
 app.use((0, cookie_parser_1.default)());
+// CORS controls which sites can read responses; this additionally prevents a
+// third-party page from causing a state-changing request with a session cookie.
+app.use((req, res, next) => {
+    const unsafeMethod = ["POST", "PUT", "PATCH", "DELETE"].includes(req.method);
+    const hasSessionCookie = Boolean(req.cookies?.accessToken || req.cookies?.refreshToken);
+    if (!unsafeMethod || !hasSessionCookie)
+        return next();
+    const origin = req.headers.origin;
+    if (!origin || !allowedOrigins.includes(origin)) {
+        return res.status(403).json({ message: "Untrusted request origin" });
+    }
+    next();
+});
 // Serve uploaded files statically
 app.use('/uploads', express_1.default.static('uploads'));
 // Stripe Webhook needs raw body for signature verification

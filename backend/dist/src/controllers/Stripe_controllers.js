@@ -2,13 +2,15 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createPortal = exports.createCheckout = void 0;
 const Stripe_service_1 = require("../services/Stripe_service");
+const zod_1 = require("zod");
 const createCheckout = async (req, res) => {
     try {
         const userId = req.user.userId;
-        const { plan } = req.body;
-        if (!["PRO", "ENTERPRISE"].includes(plan)) {
+        const input = zod_1.z.object({ plan: zod_1.z.enum(["PRO", "ENTERPRISE"]) }).safeParse(req.body);
+        if (!input.success) {
             return res.status(400).json({ success: false, message: "Invalid plan selected" });
         }
+        const { plan } = input.data;
         const session = await Stripe_service_1.StripeService.createCheckoutSession(userId, plan);
         res.status(200).json({
             success: true,
