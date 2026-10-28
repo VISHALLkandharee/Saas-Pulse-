@@ -22,7 +22,12 @@ model User {
 
 model ApiKey {
   id        String    @id @default(uuid())
-  key       String    @unique // The actual "sp_..." key
+  // `key` exists only for a short-lived legacy migration path. New secrets are
+  // never persisted; their SHA-256 digest is used for authentication instead.
+  key       String?   @unique
+  keyHash   String?   @unique
+  prefix    String?
+  last4     String?
   name      String    @default("Default Key")
   userId    String
   user      User      @relation(fields: [userId], references: [id])
@@ -49,7 +54,14 @@ model Activity {
   user      User     @relation(fields: [userId], references: [id])
   event     String // e.g., "USER_SIGNUP", "PLAN_UPGRADE"
   metadata  Json?
+  // Provider idempotency key. A provider can safely retry the same event.
+  externalId String?
+  // Time reported by the source system, distinct from persistence/audit time.
+  occurredAt DateTime @default(now())
   createdAt DateTime @default(now())
+
+  @@unique([userId, externalId])
+  @@index([userId, occurredAt])
 }
 
 model Waitlist {

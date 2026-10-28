@@ -1,14 +1,15 @@
 import { Request, Response } from "express";
 import { StripeService } from "../services/Stripe_service";
+import { z } from "zod";
 
 export const createCheckout = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.userId;
-    const { plan } = req.body;
-
-    if (!["PRO", "ENTERPRISE"].includes(plan)) {
+    const input = z.object({ plan: z.enum(["PRO", "ENTERPRISE"]) }).safeParse(req.body);
+    if (!input.success) {
       return res.status(400).json({ success: false, message: "Invalid plan selected" });
     }
+    const { plan } = input.data;
 
     const session = await StripeService.createCheckoutSession(userId, plan);
 

@@ -1,6 +1,4 @@
 console.log("[BOOTSTRAP] Server starting...");
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-// Forced reload to pick up controller changes
 import "dotenv/config";
 
 
