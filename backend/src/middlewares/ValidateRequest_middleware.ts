@@ -35,9 +35,9 @@ export const registerSchema = z.object({
 
 export const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
-  password: z
-    .string()
-    .min(12, { message: "Password must be at least 12 characters long" }),
+  // Sign-in must accept passwords created before the current password policy.
+  // Strength requirements belong on registration and password changes only.
+  password: z.string().min(1, { message: "Password is required" }),
 });
 
 export const waitlistSchema = z.object({
