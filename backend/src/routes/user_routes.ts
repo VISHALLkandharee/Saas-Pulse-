@@ -4,6 +4,7 @@ import {authMiddleware, authorizeAdmin} from "../middlewares/Auth_Middleware";
 import { validateSchema, loginSchema,registerSchema, waitlistSchema, changePasswordSchema } from "../middlewares/ValidateRequest_middleware";
 import { upload } from "../middlewares/Upload_middleware";
 import passport from "../utils/Passport_config";
+import { generateSocketTicket } from "../utils/jwt";
 
 const router = Router();
 
@@ -19,6 +20,11 @@ router.get(
 router.post("/register", upload.single("image"), validateSchema(registerSchema), registerUser);
 router.post("/login", validateSchema(loginSchema), loginUser);
 router.get("/profile", authMiddleware, getprofile);
+router.post("/socket-ticket", authMiddleware, (req, res) => {
+  const userId = (req as any).user?.userId;
+  if (!userId) return res.status(401).json({ message: "Unauthorized" });
+  return res.status(200).json({ ticket: generateSocketTicket(userId), expiresIn: 60 });
+});
 router.put("/profile", authMiddleware, upload.single("image"), updateProfile);
 router.post("/change-password", authMiddleware, validateSchema(changePasswordSchema), changePassword);
 router.delete("/delete-account", authMiddleware, deleteAccount);

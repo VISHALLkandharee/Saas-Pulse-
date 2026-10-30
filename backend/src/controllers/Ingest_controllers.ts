@@ -8,7 +8,10 @@ export const ingestEvent = async (req: Request, res: Response) => {
   try {
     // This userId is injected by the verifyApiKey middleware
     const userId = (req as any).integrationUser?.userId;
-    const { event, metadata, idempotencyKey, occurredAt: occurredAtInput } = req.body;
+    const { event, metadata, idempotencyKey } = req.body;
+    // `timestamp` is the field in the existing public API contract; accept the
+    // newer `occurredAt` name too without forcing existing integrations to change.
+    const occurredAtInput = req.body.occurredAt ?? req.body.timestamp;
 
     if (typeof event !== "string" || !/^[A-Za-z0-9_:-]{1,64}$/.test(event)) {
       return res.status(400).json({ success: false, message: "'event' must be a 1-64 character identifier" });
@@ -23,22 +26,27 @@ export const ingestEvent = async (req: Request, res: Response) => {
     }
 
     const externalId = req.header("idempotency-key") || idempotencyKey;
-    if (typeof externalId !== "string" || externalId.length < 8 || externalId.length > 128) {
-      return res.status(400).json({ success: false, message: "Provide an Idempotency-Key (8-128 characters) for every pulse" });
+    if (externalId !== undefined && externalId !== null &&
+        (typeof externalId !== "string" || externalId.length < 8 || externalId.length > 128)) {
+      return res.status(400).json({ success: false, message: "Idempotency-Key must be 8-128 characters when provided" });
     }
 
-    const occurredAt = occurredAtInput ? new Date(occurredAtInput) : new Date();
-    if (Number.isNaN(occurredAt.getTime()) || occurredAt > new Date(Date.now() + 5 * 60 * 1000)) {
-      return res.status(400).json({ success: false, message: "'occurredAt' must be a valid timestamp that is not in the future" });
+    const occurredAt = occurredAtInput === undefined ? new Date() : new Date(occurredAtInput);
+    if ((occurredAtInput !== undefined && typeof occurredAtInput !== "string") ||
+        Number.isNaN(occurredAt.getTime()) || occurredAt > new Date(Date.now() + 5 * 60 * 1000)) {
+      return res.status(400).json({ success: false, message: "'timestamp'/'occurredAt' must be a valid timestamp that is not in the future" });
     }
 
-    // Retries must be handled before quotas or business side effects.
-    const alreadyProcessed = await prisma.activity.findUnique({
-      where: { userId_externalId: { userId, externalId } },
-      select: { id: true },
-    });
-    if (alreadyProcessed) {
-      return res.status(200).json({ success: true, duplicate: true, message: "Pulse already processed", activityId: alreadyProcessed.id });
+    // Idempotency is opt-in for backwards compatibility. When supplied, check
+    // retries before quotas or other side effects.
+    if (externalId) {
+      const alreadyProcessed = await prisma.activity.findUnique({
+        where: { userId_externalId: { userId, externalId } },
+        select: { id: true },
+      });
+      if (alreadyProcessed) {
+        return res.status(200).json({ success: true, duplicate: true, message: "Pulse already processed", activityId: alreadyProcessed.id });
+      }
     }
 
     // Tier Enforcement: Check monthly pulse limits (Plan provided by verifyApiKey middleware)
@@ -172,7 +180,7 @@ export const ingestEvent = async (req: Request, res: Response) => {
         include: { user: { select: { id: true, email: true } } },
       });
     } catch (error: any) {
-      if (error?.code === "P2002") {
+      if (error?.code === "P2002" && externalId) {
         const duplicate = await prisma.activity.findUnique({
           where: { userId_externalId: { userId, externalId } },
           select: { id: true },

@@ -21,7 +21,8 @@ import { motion, AnimatePresence } from "framer-motion";
 interface ApiKey {
   id: string;
   name: string;
-  key: string;
+  key?: string;
+  display?: string;
   createdAt: string;
 }
 
@@ -52,11 +53,14 @@ export default function DevelopersPage() {
   const handleGenerate = async () => {
     try {
       setIsCreating(true);
-      await api.post("/keys/generate", {
+      const response = await api.post("/keys/generate", {
         name: newKeyName || "Production Key",
       });
+      const generatedKey = response.data.apiKey as ApiKey;
+      // The backend returns the plaintext secret only once. Keep it in memory
+      // so the user can copy it before leaving or refreshing this page.
+      setKeys((current) => [generatedKey, ...current.filter((key) => key.id !== generatedKey.id)]);
       setNewKeyName("");
-      fetchKeys();
     } catch (error) {
       console.error("Failed to generate key", error);
     } finally {
@@ -156,6 +160,11 @@ export default function DevelopersPage() {
               <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-500 ml-1">
                 Active Integration Keys
               </h3>
+              {keys.some((key) => key.key) && (
+                <p className="text-xs text-amber-400/90 ml-1">
+                  Copy the new secret now. Existing keys are masked and cannot be retrieved; generate a replacement if needed.
+                </p>
+              )}
               <AnimatePresence mode="popLayout">
                 {keys.map((key, idx) => (
                   <motion.div
@@ -177,12 +186,13 @@ export default function DevelopersPage() {
                       </div>
                       <div className="flex items-center gap-2 w-full">
                         <div className="bg-zinc-950 border border-zinc-800 px-3 py-2 rounded-xl font-mono text-xs text-emerald-500/80 flex-1 truncate select-all">
-                          {key.key}
+                          {key.key || key.display || "Secret unavailable; generate a replacement key."}
                         </div>
                         <button
-                          onClick={() => copyToClipboard(key.key, key.id)}
-                          className="p-2.5 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 rounded-xl text-zinc-500 hover:text-white transition-all shadow-sm shrink-0"
-                          title="Copy Key"
+                          onClick={() => key.key && copyToClipboard(key.key, key.id)}
+                          disabled={!key.key}
+                          className="p-2.5 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 rounded-xl text-zinc-500 hover:text-white transition-all shadow-sm shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title={key.key ? "Copy key" : "The secret is only available immediately after generation"}
                         >
                           {copiedId === key.id ? (
                             <Check size={16} className="text-emerald-500" />

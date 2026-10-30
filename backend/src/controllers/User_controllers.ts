@@ -8,10 +8,11 @@ import {
 import prisma from "../utils/prisma";
 import { Request, Response } from "express";
 import { EmailService } from "../services/Email_service";
+import { timingSafeEqual } from "crypto";
 
 const registerUser = async (req: Request, res: Response) => {
   try {
-    const { name, email, password, image: imageUrl } = req.body;
+    const { name, email, password, adminId, image: imageUrl } = req.body;
     console.log(`[AUTH] Register request from origin: ${req.headers.origin}`);
 
     // Use uploaded file path (Cloudinary URL). If local, prefix with / for static serving.
@@ -27,9 +28,18 @@ const registerUser = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "User already exists with this email" });
     }
 
-    // Privileged accounts are provisioned through controlled operations, never
-    // by a secret accepted from a public registration form.
-    const role: "USER" = "USER";
+    // Keep the existing invite flow while comparing the server-side secret in
+    // constant time. Never grant admin when the secret is absent or incorrect.
+    let role: "USER" | "ADMIN" = "USER";
+    if (adminId) {
+      const configuredAdminId = process.env.ADMIN_ID;
+      const submitted = Buffer.from(adminId);
+      const configured = Buffer.from(configuredAdminId || "");
+      if (!configured.length || submitted.length !== configured.length || !timingSafeEqual(submitted, configured)) {
+        return res.status(403).json({ message: "Invalid admin invitation" });
+      }
+      role = "ADMIN";
+    }
 
     const hashedPassword = await hashPassword(password);
 

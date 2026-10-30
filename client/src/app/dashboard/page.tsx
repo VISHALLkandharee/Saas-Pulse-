@@ -120,9 +120,16 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user) return;
-    
-    // Connect to Socket.io server
     const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:8000", {
+      // Fetch a fresh, short-lived ticket on every initial connection/reconnect.
+      auth: (callback) => {
+        api.post("/auth/socket-ticket")
+          .then(({ data }) => callback({ ticket: data.ticket }))
+          .catch((error) => {
+            console.error("[SOCKET] Could not obtain an authenticated connection ticket:", error);
+            callback({});
+          });
+      },
       withCredentials: true,
       transports: ["websocket", "polling"],
     });
@@ -131,46 +138,33 @@ export default function DashboardPage() {
       console.log("[SOCKET] Connected to real-time feed:", socket.id);
     });
 
-    // Handle new incoming pulses in real-time (Private Owner Room)
     socket.on("new-pulse", (newActivity: ActivityItem) => {
-      console.log("[SOCKET] New private pulse received:", newActivity);
-      
-      const isOwner = newActivity.userId === user?.id;
-      
-      // Update cache manually for immediate feedback in the Feed
-      queryClient.setQueryData(["activities"], (old: ActivityItem[] | undefined) => {
-        return [newActivity, ...(old || [])].slice(0, 15);
-      });
-      
-      // Invalidate stats if it's a high-level event
+      const isOwner = newActivity.userId === user.id;
+      queryClient.setQueryData(["activities"], (old: ActivityItem[] | undefined) =>
+        [{ ...newActivity, isOwner }, ...(old || [])].slice(0, 15),
+      );
       if (["PLAN_UPGRADE", "NEW_SUBSCRIPTION"].includes(newActivity.event)) {
         queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       }
     });
 
-    // Handle community-wide social proof (Anonymized)
-    socket.on("community-pulse", (data: { event: string, message: string }) => {
-      console.log("[SOCKET] Community toast received:", data);
-      
-      const toastWithContext: any = {
+    socket.on("community-pulse", (data: { event: string; message: string }) => {
+      const toastWithContext: ActivityItem = {
         id: Math.random().toString(),
         userId: "community",
         event: data.event,
         message: data.message,
         timestamp: new Date().toISOString(),
         userEmail: "Saas Pulse",
-        isOwner: false
+        isOwner: false,
       };
-      
       setActiveToast(toastWithContext);
       setTimeout(() => setActiveToast(null), 5000);
     });
 
-    // Handle subscription status changes in real-time
-    socket.on("subscription-updated", (data: { userId: string, plan: string }) => {
-      if (data.userId === user?.id) {
-        console.log("[SOCKET] Subscription updated, refreshing state...");
-        checkAuth(); // Refresh global user plan state
+    socket.on("subscription-updated", (data: { userId: string; plan: string }) => {
+      if (data.userId === user.id) {
+        checkAuth();
         queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       }
     });

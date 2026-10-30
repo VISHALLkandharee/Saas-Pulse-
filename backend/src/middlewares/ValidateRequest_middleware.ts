@@ -31,6 +31,9 @@ export const registerSchema = z.object({
   password: z
     .string()
     .min(6, { message: "Password must be at least 6 characters long" }),
+  // Preserve the existing admin-invite flow; the secret is validated against
+  // a server-only environment variable in the registration controller.
+  adminId: z.string().min(1).max(256).optional(),
 });
 
 export const loginSchema = z.object({

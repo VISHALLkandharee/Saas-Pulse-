@@ -1,6 +1,6 @@
 import { Server as SocketServer } from "socket.io";
 import { Server as HttpServer } from "http";
-import { verifyAccessToken } from "./jwt";
+import { verifyAccessToken, verifySocketTicket } from "./jwt";
 
 let io: SocketServer;
 
@@ -36,10 +36,13 @@ export const initSocket = (server: HttpServer) => {
         .map((part) => part.trim())
         .find((part) => part.startsWith("accessToken="))
         ?.slice("accessToken=".length);
-      const token = socket.handshake.auth?.token || accessToken;
-      if (!token) return next(new Error("Unauthorized socket connection"));
-
-      const user = verifyAccessToken(decodeURIComponent(token));
+      const ticket = socket.handshake.auth?.ticket;
+      const user = ticket
+        ? verifySocketTicket(ticket)
+        : accessToken
+          ? verifyAccessToken(decodeURIComponent(accessToken))
+          : null;
+      if (!user) return next(new Error("Unauthorized socket connection"));
       socket.data.userId = user.userId;
       next();
     } catch {

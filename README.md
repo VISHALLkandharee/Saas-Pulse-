@@ -53,7 +53,7 @@ Technology (high level)
 - Integrations: Stripe (payments), Cloudinary (files), Resend (emails), GitHub OAuth
 
 Implemented features (what’s actually in the code)
-- Ingestion endpoint: POST /api/v1/pulse with X-API-Key header
+- Ingestion endpoint: POST /api/v1/event with X-API-Key header
 - Deduplication and 409 handling for duplicate events
 - Real-time Socket.io pipeline for private and community pulses
 - Stripe integration for subscription lifecycle and webhooks
@@ -61,16 +61,16 @@ Implemented features (what’s actually in the code)
 - Basic security middleware (Helmet, CORS rules) and JWT-based auth
 
 Example ingestion request
-POST /api/v1/pulse
-Headers: { "X-API-Key": "your_api_key" }
+POST /api/v1/event
+Headers: { "X-API-Key": "your_api_key", "Idempotency-Key": "optional-event-id" }
 Body:
 {
-  "event": "plan_upgrade",
-  "customerId": "cust_123",
-  "mrr": 99,
+  "event": "PLAN_UPGRADE",
+  "metadata": { "customerId": "cust_123", "plan": "PRO", "mrr": 99 },
   "timestamp": "2026-04-28T10:30:00Z"
 }
-Responses: 201 Created | 409 Conflict | 429 Too Many Requests | 401 Unauthorized
+Idempotency-Key is optional; when supplied, retries of that event are deduplicated.
+Responses: 201 Created | 200 Duplicate | 409 Conflict | 429 Too Many Requests | 401 Unauthorized
 
 Project layout
 Saas-Pulse-/
@@ -89,6 +89,7 @@ Saas-Pulse-/
 Environment variables (examples)
 # Backend (.env)
 DATABASE_URL=postgresql://user:password@host:5432/saas_pulse
+DIRECT_URL=postgresql://user:password@host:5432/saas_pulse
 # For private/self-signed database certificates, set DATABASE_CA_CERT to the
 # provider's trusted root CA PEM in the backend deployment environment.
 DATABASE_CA_CERT="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
@@ -103,6 +104,11 @@ NEXT_PUBLIC_API_URL=http://localhost:4000
 # Frontend (.env.local)
 NEXT_PUBLIC_API_URL=http://localhost:4000
 NEXT_PUBLIC_SOCKET_URL=http://localhost:4000
+
+Railway backend deployments run `npm run db:push` as a pre-deploy command so
+new additive Prisma columns/indexes are present before the application starts.
+The backend service root directory on Railway should be `backend` so it reads
+`backend/railway.json` and uses the backend package scripts.
 
 Notes about stability and claims
 - The code contains logic for Redis failover and SQL fallbacks in some areas; please run local tests and a demo dataset to verify behavior for your environment.
