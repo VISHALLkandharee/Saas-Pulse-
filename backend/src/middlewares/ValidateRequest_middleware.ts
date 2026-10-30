@@ -30,24 +30,17 @@ export const registerSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }), 
   password: z
     .string()
-    .min(12, { message: "Password must be at least 12 characters long" }),
+    .min(6, { message: "Password must be at least 6 characters long" }),
+  adminId: z.string().optional(),
 });
 
 export const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
   password: z
     .string()
-    .min(12, { message: "Password must be at least 12 characters long" }),
+    .min(6, { message: "Password must be at least 6 characters long" }),
 });
 
 export const waitlistSchema = z.object({
   email: z.string().email({ message: "Join our waitlist with a valid email!" }),
-});
-
-export const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, { message: "Current password is required" }),
-  newPassword: z.string().min(12, { message: "New password must be at least 12 characters long" }),
-}).refine(({ currentPassword, newPassword }) => currentPassword !== newPassword, {
-  message: "New password cannot be the same as current password",
-  path: ["newPassword"],
 });

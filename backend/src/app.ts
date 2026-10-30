@@ -60,20 +60,6 @@ app.use(
 
 app.use(cookieParser());
 
-// CORS controls which sites can read responses; this additionally prevents a
-// third-party page from causing a state-changing request with a session cookie.
-app.use((req, res, next) => {
-  const unsafeMethod = ["POST", "PUT", "PATCH", "DELETE"].includes(req.method);
-  const hasSessionCookie = Boolean(req.cookies?.accessToken || req.cookies?.refreshToken);
-  if (!unsafeMethod || !hasSessionCookie) return next();
-
-  const origin = req.headers.origin;
-  if (!origin || !allowedOrigins.includes(origin)) {
-    return res.status(403).json({ message: "Untrusted request origin" });
-  }
-  next();
-});
-
 // Serve uploaded files statically
 app.use('/uploads', express.static('uploads'));
 

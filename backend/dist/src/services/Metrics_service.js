@@ -145,7 +145,7 @@ class MetricsService {
             usageCount = await prisma_1.default.activity.count({
                 where: {
                     userId,
-                    occurredAt: { gte: startOfCurrentMonth },
+                    createdAt: { gte: startOfCurrentMonth },
                     NOT: {
                         event: { in: ["USER_SIGNUP", "USER_LOGIN"] }
                     }
@@ -166,9 +166,9 @@ class MetricsService {
         const limit = limits[plan] || 1000; // Final safety fallback
         // 2. Business Pulses Aggregation
         const pulses = await prisma_1.default.activity.findMany({
-            where: { userId, occurredAt: { gte: retentionDate } },
-            select: { event: true, metadata: true, occurredAt: true },
-            orderBy: { occurredAt: 'asc' }
+            where: { userId, createdAt: { gte: retentionDate } },
+            select: { event: true, metadata: true, createdAt: true },
+            orderBy: { createdAt: 'asc' }
         });
         let currentMonthMrr = 0;
         let prevMonthMrr = 0;
@@ -186,39 +186,26 @@ class MetricsService {
             const val = meta.mrr || meta.amount || meta.value || 0;
             const amount = typeof val === 'number' ? val : (parseFloat(val) || 0);
             const custId = meta.customer || meta.customerId || meta.email || meta.userId;
-            const isCancellation = p.event === "SUBSCRIPTION_CANCELLED" || p.event === "CHURN";
-            if (p.occurredAt >= startOfCurrentMonth) {
+            if (p.createdAt >= startOfCurrentMonth) {
                 // Track unique identity if available
                 if (custId) {
-                    if (isCancellation) {
-                        currentCustomerIds.delete(String(custId));
-                        currentMonthCustomerMrr.delete(String(custId));
-                    }
-                    else {
-                        currentCustomerIds.add(String(custId));
-                        currentMonthCustomerMrr.set(String(custId), amount);
-                    }
+                    currentCustomerIds.add(String(custId));
+                    currentMonthCustomerMrr.set(String(custId), amount);
                 }
                 else {
                     // If no identity, still count the revenue as a guest pulse
-                    currentMonthMrr += isCancellation ? 0 : amount;
+                    currentMonthMrr += amount;
                 }
-                if (isCancellation)
+                if (p.event === "SUBSCRIPTION_CANCELLED" || p.event === "CHURN")
                     cancelledCount++;
             }
-            else if (p.occurredAt >= startOfPrevMonth && p.occurredAt < startOfCurrentMonth) {
+            else if (p.createdAt >= startOfPrevMonth && p.createdAt < startOfCurrentMonth) {
                 if (custId) {
-                    if (isCancellation) {
-                        prevCustomerIds.delete(String(custId));
-                        prevMonthCustomerMrr.delete(String(custId));
-                    }
-                    else {
-                        prevCustomerIds.add(String(custId));
-                        prevMonthCustomerMrr.set(String(custId), amount);
-                    }
+                    prevCustomerIds.add(String(custId));
+                    prevMonthCustomerMrr.set(String(custId), amount);
                 }
                 else {
-                    prevMonthMrr += isCancellation ? 0 : amount;
+                    prevMonthMrr += amount;
                 }
             }
         });
@@ -237,13 +224,12 @@ class MetricsService {
             const mStart = new Date(d.getFullYear(), d.getMonth(), 1);
             const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
             const mRev = pulses
-                .filter((p) => p.occurredAt >= mStart && p.occurredAt <= mEnd)
+                .filter((p) => p.createdAt >= mStart && p.createdAt <= mEnd)
                 .reduce((sum, p) => {
                 const m = p.metadata || {};
                 const v = m.mrr || m.amount || m.value || 0;
                 const a = typeof v === 'number' ? v : (parseFloat(v) || 0);
-                const isCancellation = p.event === "SUBSCRIPTION_CANCELLED" || p.event === "CHURN";
-                return sum + (isCancellation || isNaN(a) ? 0 : a);
+                return sum + (isNaN(a) ? 0 : a);
             }, 0);
             revenueHistory.push({ month: mName, revenue: Number(mRev.toFixed(2)) });
         }
@@ -287,13 +273,13 @@ class MetricsService {
                     {
                         AND: [
                             { event: { in: ["PLAN_UPGRADE", "USER_SIGNUP"] } },
-                            { occurredAt: { gte: await MetricsService.getRetentionDate(userId, role) } }
+                            { createdAt: { gte: await MetricsService.getRetentionDate(userId, role) } }
                         ]
                     }
                 ]
             },
             include: { user: { select: { id: true, email: true } } },
-            orderBy: { occurredAt: "desc" },
+            orderBy: { createdAt: "desc" },
             take: isAdmin ? 100 : 60, // Fetch a larger batch to account for hidden ones
         });
         // Filter out soft-deleted items before returning the exact requested amount
@@ -314,7 +300,7 @@ class MetricsService {
                 id: a.id,
                 userId: a.userId,
                 event: a.event,
-                timestamp: a.occurredAt.toISOString(),
+                timestamp: a.createdAt.toISOString(),
                 message: MetricsService.formatActivityMessage(a.event, isOwner),
                 userEmail: displayEmail,
                 isOwner,

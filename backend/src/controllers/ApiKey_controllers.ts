@@ -2,21 +2,6 @@ import { Request, Response } from "express";
 import prisma from "../utils/prisma";
 import crypto from "crypto";
 
-const hashApiKey = (key: string) =>
-  crypto.createHash("sha256").update(key).digest("hex");
-
-const publicApiKey = (apiKey: {
-  id: string;
-  name: string;
-  prefix: string | null;
-  last4: string | null;
-  createdAt: Date;
-  lastUsed: Date | null;
-}) => ({
-  ...apiKey,
-  display: apiKey.prefix && apiKey.last4 ? `${apiKey.prefix}••••${apiKey.last4}` : "Legacy key",
-});
-
 export const generateApiKey = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.userId;
@@ -48,27 +33,16 @@ export const generateApiKey = async (req: Request, res: Response) => {
 
     const apiKey = await prisma.apiKey.create({
       data: {
-        keyHash: hashApiKey(key),
-        prefix: key.slice(0, 11),
-        last4: key.slice(-4),
+        key,
         name: name || "Default Key",
         userId,
-      },
-      select: {
-        id: true,
-        name: true,
-        prefix: true,
-        last4: true,
-        createdAt: true,
-        lastUsed: true,
       },
     });
 
     res.status(201).json({
       success: true,
       message: "API Key generated successfully",
-      // The plaintext is intentionally returned exactly once and is never stored.
-      apiKey: { ...publicApiKey(apiKey), key },
+      apiKey,
     });
   } catch (error) {
     console.error("Failed to generate API Key:", error);
@@ -83,19 +57,11 @@ export const getApiKeys = async (req: Request, res: Response) => {
     const apiKeys = await prisma.apiKey.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        name: true,
-        prefix: true,
-        last4: true,
-        createdAt: true,
-        lastUsed: true,
-      },
     });
 
     res.status(200).json({
       success: true,
-      apiKeys: apiKeys.map(publicApiKey),
+      apiKeys,
     });
   } catch (error) {
     console.error("Failed to fetch API Keys:", error);

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getallUsers, getprofile, loginUser, logoutUser, updateProfile, refreshAccessToken, registerUser, changePassword, deleteAccount, githubAuthCallback, joinWaitlist } from "../controllers/User_controllers";
 import {authMiddleware, authorizeAdmin} from "../middlewares/Auth_Middleware";
-import { validateSchema, loginSchema,registerSchema, waitlistSchema, changePasswordSchema } from "../middlewares/ValidateRequest_middleware";
+import { validateSchema, loginSchema,registerSchema, waitlistSchema } from "../middlewares/ValidateRequest_middleware";
 import { upload } from "../middlewares/Upload_middleware";
 import passport from "../utils/Passport_config";
 
@@ -20,9 +20,9 @@ router.post("/register", upload.single("image"), validateSchema(registerSchema),
 router.post("/login", validateSchema(loginSchema), loginUser);
 router.get("/profile", authMiddleware, getprofile);
 router.put("/profile", authMiddleware, upload.single("image"), updateProfile);
-router.post("/change-password", authMiddleware, validateSchema(changePasswordSchema), changePassword);
+router.post("/change-password", authMiddleware, changePassword);
 router.delete("/delete-account", authMiddleware, deleteAccount);
-router.post("/logout", logoutUser);
+router.get("/logout", logoutUser);
 router.get("/refresh-token", refreshAccessToken)
 router.post("/waitlist", validateSchema(waitlistSchema), joinWaitlist);
 

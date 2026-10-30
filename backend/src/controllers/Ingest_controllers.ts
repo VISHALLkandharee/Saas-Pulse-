@@ -8,37 +8,14 @@ export const ingestEvent = async (req: Request, res: Response) => {
   try {
     // This userId is injected by the verifyApiKey middleware
     const userId = (req as any).integrationUser?.userId;
-    const { event, metadata, idempotencyKey, occurredAt: occurredAtInput } = req.body;
+    const { event, metadata } = req.body;
 
-    if (typeof event !== "string" || !/^[A-Za-z0-9_:-]{1,64}$/.test(event)) {
-      return res.status(400).json({ success: false, message: "'event' must be a 1-64 character identifier" });
+    if (!event) {
+      return res.status(400).json({ success: false, message: "Missing required 'event' field" });
     }
 
     if (!userId) {
       return res.status(500).json({ success: false, message: "Integration context lost" });
-    }
-
-    if (metadata !== undefined && (typeof metadata !== "object" || metadata === null || Array.isArray(metadata) || JSON.stringify(metadata).length > 16_000)) {
-      return res.status(400).json({ success: false, message: "'metadata' must be an object no larger than 16KB" });
-    }
-
-    const externalId = req.header("idempotency-key") || idempotencyKey;
-    if (typeof externalId !== "string" || externalId.length < 8 || externalId.length > 128) {
-      return res.status(400).json({ success: false, message: "Provide an Idempotency-Key (8-128 characters) for every pulse" });
-    }
-
-    const occurredAt = occurredAtInput ? new Date(occurredAtInput) : new Date();
-    if (Number.isNaN(occurredAt.getTime()) || occurredAt > new Date(Date.now() + 5 * 60 * 1000)) {
-      return res.status(400).json({ success: false, message: "'occurredAt' must be a valid timestamp that is not in the future" });
-    }
-
-    // Retries must be handled before quotas or business side effects.
-    const alreadyProcessed = await prisma.activity.findUnique({
-      where: { userId_externalId: { userId, externalId } },
-      select: { id: true },
-    });
-    if (alreadyProcessed) {
-      return res.status(200).json({ success: true, duplicate: true, message: "Pulse already processed", activityId: alreadyProcessed.id });
     }
 
     // Tier Enforcement: Check monthly pulse limits (Plan provided by verifyApiKey middleware)
@@ -65,7 +42,7 @@ export const ingestEvent = async (req: Request, res: Response) => {
         const dbCount = await prisma.activity.count({
           where: {
             userId,
-            occurredAt: { gte: startOfMonth },
+            createdAt: { gte: startOfMonth },
             NOT: {
               event: { in: ["USER_SIGNUP", "USER_LOGIN"] }
             }
@@ -128,7 +105,7 @@ export const ingestEvent = async (req: Request, res: Response) => {
                   { metadata: { path: ["userId"], equals: custId } }
                 ]
               },
-            orderBy: { occurredAt: 'desc' }
+              orderBy: { createdAt: 'desc' }
             });
             
             if (lastLifecyclePulse) {
@@ -159,28 +136,21 @@ export const ingestEvent = async (req: Request, res: Response) => {
     // --- STATEFUL GATEKEEPER END ---
 
     // Save the incoming event as an Activity belonging to the founder
-    let newActivity;
-    try {
-      newActivity = await prisma.activity.create({
-        data: {
-          userId,
-          event: String(event).toUpperCase(),
-          metadata: metadata || {},
-          externalId,
-          occurredAt,
-        },
-        include: { user: { select: { id: true, email: true } } },
-      });
-    } catch (error: any) {
-      if (error?.code === "P2002") {
-        const duplicate = await prisma.activity.findUnique({
-          where: { userId_externalId: { userId, externalId } },
-          select: { id: true },
-        });
-        return res.status(200).json({ success: true, duplicate: true, message: "Pulse already processed", activityId: duplicate?.id });
+    const newActivity = await prisma.activity.create({
+      data: {
+        userId,
+        event: String(event).toUpperCase(),
+        metadata: metadata || {},
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+          }
+        }
       }
-      throw error;
-    }
+    });
 
     // Tier Feature: Activity Alerts (PRO/ENTERPRISE)
     if (plan !== "FREE" && newActivity.user?.email) {
@@ -216,7 +186,7 @@ export const ingestEvent = async (req: Request, res: Response) => {
         id: newActivity.id,
         userId: newActivity.userId,
         event: newActivity.event,
-        timestamp: newActivity.occurredAt.toISOString(),
+        timestamp: newActivity.createdAt.toISOString(),
         userEmail: displayEmail,
         metadata: newActivity.metadata,
         isOwner: false // Frontend determines this

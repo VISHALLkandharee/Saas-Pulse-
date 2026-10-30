@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       // 1. Tell the server to flush cookies and wait for it
       // This was being skipped/cancelled before
-      await api.post("/auth/logout");
+      await api.get("/auth/logout");
     } catch (error) {
       console.error("Server logout failed, forcing local cleanup:", error);
     } finally {

@@ -6,11 +6,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteApiKey = exports.getApiKeys = exports.generateApiKey = void 0;
 const prisma_1 = __importDefault(require("../utils/prisma"));
 const crypto_1 = __importDefault(require("crypto"));
-const hashApiKey = (key) => crypto_1.default.createHash("sha256").update(key).digest("hex");
-const publicApiKey = (apiKey) => ({
-    ...apiKey,
-    display: apiKey.prefix && apiKey.last4 ? `${apiKey.prefix}••••${apiKey.last4}` : "Legacy key",
-});
 const generateApiKey = async (req, res) => {
     try {
         const userId = req.user.userId;
@@ -37,26 +32,15 @@ const generateApiKey = async (req, res) => {
         const key = `sp_live_${crypto_1.default.randomBytes(24).toString("hex")}`;
         const apiKey = await prisma_1.default.apiKey.create({
             data: {
-                keyHash: hashApiKey(key),
-                prefix: key.slice(0, 11),
-                last4: key.slice(-4),
+                key,
                 name: name || "Default Key",
                 userId,
-            },
-            select: {
-                id: true,
-                name: true,
-                prefix: true,
-                last4: true,
-                createdAt: true,
-                lastUsed: true,
             },
         });
         res.status(201).json({
             success: true,
             message: "API Key generated successfully",
-            // The plaintext is intentionally returned exactly once and is never stored.
-            apiKey: { ...publicApiKey(apiKey), key },
+            apiKey,
         });
     }
     catch (error) {
@@ -71,18 +55,10 @@ const getApiKeys = async (req, res) => {
         const apiKeys = await prisma_1.default.apiKey.findMany({
             where: { userId },
             orderBy: { createdAt: "desc" },
-            select: {
-                id: true,
-                name: true,
-                prefix: true,
-                last4: true,
-                createdAt: true,
-                lastUsed: true,
-            },
         });
         res.status(200).json({
             success: true,
-            apiKeys: apiKeys.map(publicApiKey),
+            apiKeys,
         });
     }
     catch (error) {

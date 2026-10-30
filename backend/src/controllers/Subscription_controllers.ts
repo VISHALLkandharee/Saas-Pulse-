@@ -2,21 +2,15 @@ import { Request, Response } from "express";
 import prisma from "../utils/prisma";
 import { invalidateCache } from "../utils/redis";
 import { getIO } from "../utils/socket";
-import { z } from "zod";
-
-const subscriptionUpdateSchema = z.object({
-  userId: z.string().uuid(),
-  plan: z.enum(["FREE", "PRO", "ENTERPRISE"]),
-  status: z.enum(["ACTIVE", "CANCELLED", "EXPIRED"]),
-  mrr: z.coerce.number().min(0).max(1_000_000),
-});
 
 export const updateSubscription = async (req: Request, res: Response) => {
-  const input = subscriptionUpdateSchema.safeParse(req.body);
-  if (!input.success) {
-    return res.status(400).json({ success: false, message: "Invalid subscription update", errors: input.error.flatten().fieldErrors });
+  const { userId, plan, status, mrr } = req.body;
+
+  // Validate mrr
+  const parsedMrr = parseFloat(mrr);
+  if (isNaN(parsedMrr)) {
+    return res.status(400).json({ success: false, message: "Invalid MRR value" });
   }
-  const { userId, plan, status, mrr: parsedMrr } = input.data;
 
   try {
     const updatedSubscription = await prisma.subscription.upsert({

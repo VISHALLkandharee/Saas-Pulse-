@@ -125,6 +125,7 @@ export default function DashboardPage() {
     const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:8000", {
       withCredentials: true,
       transports: ["websocket", "polling"],
+      query: { userId: user?.id }
     });
 
     socket.on("connect", () => {

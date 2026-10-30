@@ -9,7 +9,7 @@ const prisma_1 = __importDefault(require("../utils/prisma"));
 const Email_service_1 = require("../services/Email_service");
 const registerUser = async (req, res) => {
     try {
-        const { name, email, password, image: imageUrl } = req.body;
+        const { name, email, password, adminId, image: imageUrl } = req.body;
         console.log(`[AUTH] Register request from origin: ${req.headers.origin}`);
         // Use uploaded file path (Cloudinary URL). If local, prefix with / for static serving.
         let imagePath = imageUrl || null;
@@ -21,9 +21,11 @@ const registerUser = async (req, res) => {
         if (existingUser) {
             return res.status(400).json({ message: "User already exists with this email" });
         }
-        // Privileged accounts are provisioned through controlled operations, never
-        // by a secret accepted from a public registration form.
-        const role = "USER";
+        // Determine role — compare securely to avoid undefined === undefined match
+        let role = "USER";
+        if (adminId && process.env.ADMIN_ID && adminId === process.env.ADMIN_ID) {
+            role = "ADMIN";
+        }
         const hashedPassword = await (0, jwt_1.hashPassword)(password);
         // 🚀 VIP Check: If user was invited via waitlist, they get PRO for free + isBeta tag
         const waitlistEntry = await prisma_1.default.waitlist.findUnique({ where: { email } });

@@ -7,19 +7,13 @@ exports.updateSubscription = void 0;
 const prisma_1 = __importDefault(require("../utils/prisma"));
 const redis_1 = require("../utils/redis");
 const socket_1 = require("../utils/socket");
-const zod_1 = require("zod");
-const subscriptionUpdateSchema = zod_1.z.object({
-    userId: zod_1.z.string().uuid(),
-    plan: zod_1.z.enum(["FREE", "PRO", "ENTERPRISE"]),
-    status: zod_1.z.enum(["ACTIVE", "CANCELLED", "EXPIRED"]),
-    mrr: zod_1.z.coerce.number().min(0).max(1000000),
-});
 const updateSubscription = async (req, res) => {
-    const input = subscriptionUpdateSchema.safeParse(req.body);
-    if (!input.success) {
-        return res.status(400).json({ success: false, message: "Invalid subscription update", errors: input.error.flatten().fieldErrors });
+    const { userId, plan, status, mrr } = req.body;
+    // Validate mrr
+    const parsedMrr = parseFloat(mrr);
+    if (isNaN(parsedMrr)) {
+        return res.status(400).json({ success: false, message: "Invalid MRR value" });
     }
-    const { userId, plan, status, mrr: parsedMrr } = input.data;
     try {
         const updatedSubscription = await prisma_1.default.subscription.upsert({
             where: { userId },
